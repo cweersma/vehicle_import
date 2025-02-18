@@ -76,7 +76,7 @@ The git, php8, and php-composer packages must all be installed.
 import.php is run from the command line, and takes three flags: --hs, --sv, and either of --use-vin or --use-spec. The --hs
 flag specifies the location of the hardware/software CSV from step 3; --sv specifies the location the software/vehicle CSV
 from step 4. --use-vin indicates that VINs are provided in the software/vehicle CSV, while --use-spec indicates that
-specifications are provided instead.
+specifications are provided instead. It does not matter which order these flags are specified.
 
 ```console
  php import.php --hs /path/to/hardware_software.csv --sv /path/to/software_vehicle.csv --use-vin
