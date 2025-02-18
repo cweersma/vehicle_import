@@ -41,7 +41,9 @@ The git, php8, and php-composer packages must all be installed.
 4. Prepare a software/vehicle CSV.
 
    This CSV must have software numbers as its first column. Vehicle information can be provided in one of two ways: by VIN or by specification (year/make/model, etc.)
-   *Important: all software numbers in this file must either exist in the database already or be included with the hardware/software CSV.*
+
+   *Important: all software numbers in this file must either exist in the database already or be included with the hardware/software CSV. Any that do not exist in either
+   location will be ignored by the import script.*
 
    If providing VINs, the CSV should contain only software and VIN: 
 
