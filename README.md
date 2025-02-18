@@ -1,7 +1,7 @@
 # Vehicle/software import script
 
 ## Prerequisites
-The git, php8, and php-composer must all be installed.
+The git, php8, and php-composer packages must all be installed.
 
 ## Preparation steps
 
