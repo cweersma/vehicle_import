@@ -52,18 +52,19 @@ The git, php8, and php-composer packages must all be installed.
    | 456789   | JH4DA3350KS009715 |
 
    If providing specifications, all the following columns must exist (though some can be left empty):
-   1. (required): make name
-   2. (required): model name
-   3. (required): model year
-   4. (required): engine displacement (in liters)
-   5. (optional): engine type (gasoline, diesel, etc.) -- defaults to gasoline if not specified
-   6. (optional): trim (base, sport, etc.) -- defaults to null
-   7. (optional): series -- defaults to null
-
+   * (required): software number
+   * (required): make name
+   * (required): model name
+   * (required): model year
+   * (required): engine displacement (in liters)
+   * (optional): engine type (gasoline, diesel, etc.) -- defaults to gasoline if not specified
+   * (optional): trim (base, sport, etc.) -- defaults to null
+   * (optional): series -- defaults to null
+     
    | software | make      | model       | year | displacement | engine type | trim | series          |
    | -------- | --------- | ----------- | ---- | ------------ | ----------- | ---- | --------------- |
    | 987654   | Saturn    | SL1         | 2002 | 1.8          | gasoline    |      |                 |
    | 321987   | Chevrolet | S-10 Pickup | 1998 | 2.2          | gasoline    |      | 1/2 Ton Nominal |
    | 456789   | Acura     | Integra     | 1989 | 1.6          |             | LS   |                 |
-   
+
    
