@@ -16,6 +16,6 @@ The git, php8, and php-composer must all be installed.
    A composer.json file is included. You will only need to run the `composer install` command to install the Velox Server library.
    ```console
    cd vehicle_import
-   composer install`
+   composer install
    ```
    
