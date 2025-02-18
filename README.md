@@ -5,7 +5,7 @@ The git, php8, and php-composer must all be installed.
 
 ## Preparation steps
 
-* Note: this is all done on the command line. *
+  *Note: this is all done on the command line.*
   
 1. Clone this repository
    It doesn't matter where you clone this to; just make sure your user has read/write permissions in the directory.
