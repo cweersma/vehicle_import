@@ -51,7 +51,7 @@ The git, php8, and php-composer packages must all be installed.
    | 321987   | 1GCCS1442W8181753 |
    | 456789   | JH4DA3350KS009715 |
 
-   If providing specifications, all the following columns must exist (though some can be left empty):
+   If providing specifications, all the following columns must exist in the following order (though some can be left empty):
    * (required): software number
    * (required): make name
    * (required): model name
