@@ -79,7 +79,7 @@ from step 4. --use-vin indicates that VINs are provided in the software/vehicle 
 specifications are provided instead. It does not matter which order these flags are specified.
 
 ```console
- php import.php --hs /path/to/hardware_software.csv --sv /path/to/software_vehicle.csv --use-vin
+ ./import.php --hs /path/to/hardware_software.csv --sv /path/to/software_vehicle.csv --use-vin
 ```
 
 
