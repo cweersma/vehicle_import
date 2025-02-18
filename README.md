@@ -69,4 +69,18 @@ The git, php8, and php-composer packages must all be installed.
    | 321987   | Chevrolet | S-10 Pickup | 1998 | 2.2          | gasoline    |      | 1/2 Ton Nominal |
    | 456789   | Acura     | Integra     | 1989 | 1.6          |             | LS   |                 |
 
+5. Upload these files to the server and note their location.
+
+## Execution
+
+import.php is run from the command line, and takes three flags: --hs, --sv, and either of --use-vin or --use-spec. The --hs
+flag specifies the location of the hardware/software CSV from step 3; --sv specifies the location the software/vehicle CSV
+from step 4. --use-vin indicates that VINs are provided in the software/vehicle CSV, while --use-spec indicates that
+specifications are provided instead.
+
+```console
+ php import.php --hs /path/to/hardware_software.csv --sv /path/to/software_vehicle.csv --use-vin
+```
+
+
    
