@@ -1,3 +1,4 @@
+#!/usr/bin/php
 <?php
 global $server, $dbname, $mysql_user, $mysql_password;
 $url = "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVINValuesBatch/";
