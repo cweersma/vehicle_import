@@ -8,7 +8,7 @@ The git, php8, and php-composer packages must all be installed.
   *Note: this is all done on the command line.*
   
 1. Clone this repository
-   It doesn't matter where you clone this to; just make sure your user has read/write permissions in the directory.
+   It doesn't matter where you clone this to. Just make sure your user has read/write permissions in the directory.
    ```console
    git clone https://github.com/cweersma/vehicle_import.git
    ```
