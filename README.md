@@ -23,10 +23,10 @@ The git, php8, and php-composer packages must all be installed.
 
 3. Adjust the configuration as necessary
 
-  This script uses credentials stored in `inc/connection.php` to connect to the approprate database. This file must be edited to provide the correct details.
-  ```console
-  nano inc/connection.php
-  ```
+   This script uses credentials stored in `inc/connection.php` to connect to the approprate database. This file must be edited to provide the correct details.
+   ```console
+   nano inc/connection.php
+   ```
 
 3. Prepare a hardware/software CSV.
 
