@@ -32,13 +32,16 @@ The git, php8, and php-composer packages must all be installed.
 
    This CSV must have two columns. The first column must contain hardware numbers, and the second should contain software numbers. Every row must contain both.
 
+   *import.php expects each CSV file to have a header row. The column names in this header row do not matter (the order of the columns will be followed irrespective of heading)
+   but the import will always start from row 2.*
+
    | hardware | software |
    | -------- | -------- |
    | 123456   | 987654   |
    | 123456   | 321987   |
    | 789123   | 456789   |
 
-4. Prepare a software/vehicle CSV.
+5. Prepare a software/vehicle CSV.
 
    This CSV must have software numbers as its first column. Vehicle information can be provided in one of two ways: by VIN or by specification (year/make/model, etc.)
 
@@ -69,7 +72,7 @@ The git, php8, and php-composer packages must all be installed.
    | 321987   | Chevrolet | S-10 Pickup | 1998 | 2.2          | gasoline    |      | 1/2 Ton Nominal |
    | 456789   | Acura     | Integra     | 1989 | 1.6          |             | LS   |                 |
 
-5. Upload these files to the server and note their location.
+6. Upload these files to the server and note their location.
 
 ## Execution
 
