@@ -1,13 +1,17 @@
 <?php
-include_once "../vendor/autoload.php";
+global $server, $dbname, $mysql_user, $mysql_password;
+$url = "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVINValuesBatch/";
+
+include_once "vendor/autoload.php";
+include_once "inc/connection.php";
+
 use KitsuneTech\Velox\Database\Connection;
 use KitsuneTech\Velox\Structures\Model;
 use KitsuneTech\Velox\Database\Procedures\{PreparedStatement, StatementSet};
 use function KitsuneTech\Velox\Database\oneShot;
 use function KitsuneTech\Velox\Transport\Export;
 
-$url = "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVINValuesBatch/";
-$conn = new Connection("127.0.0.1","npc-rev2", "root", "Myinmortal4820*#");
+$conn = new Connection($server,$dbname,$mysql_user,$mysql_password);
 $resultModel = new Model(new PreparedStatement($conn,"SELECT * FROM nomatch_vpic"));
 
 //$rows = count($resultModel);
