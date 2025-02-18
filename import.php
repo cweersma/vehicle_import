@@ -6,11 +6,65 @@ $url = "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVINValuesBatch/";
 include_once "vendor/autoload.php";
 include_once "inc/connection.php";
 
+use JetBrains\PhpStorm\NoReturn;
 use KitsuneTech\Velox\Database\Connection;
 use KitsuneTech\Velox\Structures\Model;
 use KitsuneTech\Velox\Database\Procedures\{PreparedStatement, StatementSet};
 use function KitsuneTech\Velox\Database\oneShot;
 use function KitsuneTech\Velox\Transport\Export;
+
+/**
+ * Simply spits out usage instructions and ends the script.
+ *
+ * @return void
+ */
+#[NoReturn] function printUsage(): void {
+    echo "Usage: ./import.php --hs <hardware/software CSV> --sv <software/vehicle CSV> <vehicle info flag>\n";
+    echo "\n";
+    echo "Vehicle info flags:\n";
+    echo "    --use-vin     The software/vehicle CSV contains VINs.\n";
+    echo "    --use-spec    The software/vehicle CSV contains vehicle specifications.\n";
+    echo "\n";
+    die ("See README.md for more detailed information.\n\n");
+}
+/* Define initial variables */
+$hs = null;
+$sv = null;
+$info_type = null;
+
+/* Get flags from CLI */
+$arguments = $argv;
+array_shift($arguments);
+for ($i=0; $i < count($arguments); $i++) {
+    switch ($arguments[$i]) {
+        case '--hs':
+            $hs = $arguments[$i+1];
+            $i++;
+            break;
+        case '--sv':
+            $sv = $arguments[$i+1];
+            $i++;
+            break;
+        case '--use-vin':
+        case '--use-spec':
+            if (!$info_type) {
+                $info_type = $arguments[$i];
+            }
+            else {
+                echo "import.php requires exactly one of --use-vin or --use-spec.\n\n";
+                printUsage();
+            }
+    }
+}
+
+if (!$hs) {
+    echo "A hardware/software CSV file must be specified.\n\n";
+    printUsage();
+}
+if (!$sv) {
+    echo "A software/vehicle CSV file must be specified.\n\n";
+    printUsage();
+}
 
 $conn = new Connection($server,$dbname,$mysql_user,$mysql_password);
 $resultModel = new Model(new PreparedStatement($conn,"SELECT * FROM nomatch_vpic"));
@@ -126,7 +180,7 @@ for ($i=0; $i<$responseCount; $i++){
 
 //--------------------------------------------//
 
-echo "Synchromizing l_models...\n\n";
+echo "Synchronizing l_models...\n\n";
 
 $modelsModel = new Model(
 	new PreparedStatement($conn, "SELECT model_id, make_id, model_name FROM l_models"),
