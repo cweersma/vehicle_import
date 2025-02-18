@@ -1,0 +1,5 @@
+{
+  "require": {
+    "kitsunetech/velox-server": ">=1.0.1"
+  }
+}
