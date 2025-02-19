@@ -6,10 +6,10 @@ $url = "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVINValuesBatch/";
 include_once "vendor/autoload.php";
 include_once "inc/connection.php";
 
-use JetBrains\PhpStorm\NoReturn;
+
 use KitsuneTech\Velox\Database\Connection;
 use KitsuneTech\Velox\Structures\Model;
-use KitsuneTech\Velox\Database\Procedures\{PreparedStatement, StatementSet};
+use KitsuneTech\Velox\Database\Procedures\{Query, PreparedStatement, StatementSet, Transaction};
 use function KitsuneTech\Velox\Database\oneShot;
 use function KitsuneTech\Velox\Transport\Export;
 
@@ -18,7 +18,7 @@ use function KitsuneTech\Velox\Transport\Export;
  *
  * @return void
  */
-#[NoReturn] function printUsage(): void {
+function printUsage(): void {
     echo "Usage: ./import.php --hs <hardware/software CSV> --sv <software/vehicle CSV> <vehicle info flag>\n";
     echo "\n";
     echo "Vehicle info flags:\n";
@@ -31,6 +31,11 @@ use function KitsuneTech\Velox\Transport\Export;
 $hs = null;
 $sv = null;
 $info_type = null;
+$hsPointer = null;
+$svPointer = null;
+$hsContents = [];
+$svContents = [];
+$verbose = false;
 
 /* Get flags from CLI */
 $arguments = $argv;
@@ -54,19 +59,157 @@ for ($i=0; $i < count($arguments); $i++) {
                 echo "import.php requires exactly one of --use-vin or --use-spec.\n\n";
                 printUsage();
             }
+            break;
+        case '--verbose':
+            $verbose = true;
+            break;
     }
 }
 
-if (!$hs) {
-    echo "A hardware/software CSV file must be specified.\n\n";
+if (!$hs && !$sv) {
+    echo "At least one CSV file must be specified for import.\n\n";
     printUsage();
 }
-if (!$sv) {
-    echo "A software/vehicle CSV file must be specified.\n\n";
+if ($sv && !$info_type){
+    echo "Either --use-vin or --use-spec is required if a software/vehicle CSV file is specified.\n\n";
     printUsage();
+}
+if ($hs && !file_exists($hs)) {
+    die("Error: file $hs does not exist.\n\n");
+}
+if ($sv && !file_exists($sv)) {
+    die("Error: file $sv does not exist.\n\n");
 }
 
+//$hsPointer and/or $svPointer are implicitly set here
+if ($hs && !$hsPointer = fopen($hs, 'r')) {
+    die("Error: hardware/software CSV $hs could not be opened. Possibly a permission issue?\n\n");
+}
+if ($sv && !$svPointer = fopen($sv, 'r')) {
+    die("Error: software/vehicle CSV $sv could not be opened. Possibly a permission issue?\n\n");
+}
+
+// Parse the CSV file(s) provided
+if ($hsPointer){
+    while ($line = fgetcsv($hsPointer)){
+        $hsContents[] = array_slice($line,0,2);
+    }
+    fclose($hsPointer);
+}
+if ($svPointer){
+    while ($line = fgetcsv($svPointer)){
+        switch ($info_type) {
+            case '--use-vin':
+                $svContents[] = array_slice($line,0,2);
+                break;
+            case '--use-spec':
+                $svContents[] = array_slice($line,0,8);
+                break;
+        }
+    }
+    fclose($svPointer);
+}
+
+//Initialize the database connection
 $conn = new Connection($server,$dbname,$mysql_user,$mysql_password);
+
+//Insert all hardware/software numbers
+if ($hs){
+    //First dump the entire dataset into a temporary table
+    oneShot(new Query($conn, "CREATE TEMPORARY TABLE t_hs (`inventory_no` VARCHAR(255) NOT NULL,`mfr_software_no` VARCHAR(255) NOT NULL) CONSTRAINT noEmpty CHECK (inventory_no <> '' AND mfr_software_no <> '')"));
+
+    //INSERT IGNORE here, along with the NOT NULL and CHECK constraints, sanitize the data for rows missing data; this is thrown out in the process of the INSERT
+    $hsInsert = new PreparedStatement("INSERT IGNORE INTO t_hs (inventory_no, mfr_software_no) VALUES(?,?)");
+    for ($i = 0; $i < count($hsContents); $i++){
+        $hsInsert->addParameterSet($hsContents[$i]);
+    }
+    $hsInsert();
+
+    //Perform both inserts as an atomic transaction using the temporary table as a source
+    $hsTransaction = new Transaction($conn);
+    $hsQueries = [
+        new Query($conn,"INSERT IGNORE INTO inventory (inventory_no) SELECT DISTINCT inventory_no FROM t_hs"),
+        new Query($conn, "INSERT IGNORE INTO software (inventory_id, mfr_software_no) SELECT inventory_id, mfr_software_no FROM t_hs INNER JOIN inventory USING (inventory_id)")
+    ];
+    foreach ($hsQueries as $query){
+        $hsTransaction->addQuery($query);
+    }
+    $hsTransaction();
+    oneShot(new Query($conn,"DROP TABLE t_hs"));
+}
+
+if (!$sv) {
+    die("Complete.\n\n");
+}
+
+// ----- Everything from here on pertains only to vehicle/software matches. ----- //
+
+$svTableSQL = "CREATE TEMPORARY TABLE t_sv (`mfr_software_no` VARCHAR(255) NOT NULL, ";
+$svInsertSQL = "INSERT IGNORE INTO t_sv (mfr_software_no, )";
+switch ($info_type) {
+    case '--use-vin':
+        $svTableSQL .= "`vin` VARCHAR(17) NOT NULL)";
+        $svInsertSQL .= "vin, ";
+        $colCount = 2;
+        break;
+    case '--use-spec':
+        $svTableSQL .= "`make_name` VARCHAR(255) NOT NULL, ";
+        $svTableSQL .= "`model_name` VARCHAR(255) NOT NULL, ";
+        $svTableSQL .= "`model_year` SMALLINT(5) UNSIGNED NOT NULL, ";
+        $svTableSQL .= "`engine_displacement` DECIMAL(3,1) NOT NULL, ";
+        $svTableSQL .= "`engine_type` VARCHAR(255) NOT NULL DEFAULT 'Gasoline', ";
+        $svTableSQL .= "`vehicle_trim` VARCHAR(100), ";
+        $svTableSQL .= "`vehicle_series` VARCHAR(100), ";
+        $svInsertSQL .= "make_name, model_name, model_year, engine_displacement, engine_type, vehicle_trim, vehicle_series)";
+        // The CHECK constraint we used in t_hs would be too cumbersome here with eight columns, so we'll sanitize our empty strings a little differently here.
+        $colCount = 8;
+        break;
+    default:
+        die("Error -- the proper vehicle info flag was not found.\n\n");
+}
+//We'll populate the following two later, and the results will be inserted into vehicle_software_map
+$svTableSQL .= "`software_id` INT(11) UNSIGNED, ";
+$svTableSQL .= "`vehicle_id` INT(11) UNSIGNED)";
+
+//Creates an "?,?,?" string of the appropriate length
+$placeholders = implode(",",str_split(str_repeat('?',$colCount)));
+$svInsertSQL .= "VALUES ($placeholders)";
+oneShot(new Query($conn, $svTableSQL));
+$svInsert = new PreparedStatement($conn,$svInsertSQL);
+for ($i = 0; $i < count($svContents); $i++){
+    //Replace all empty strings with nulls here; this will allow the NOT NULL constraints we set to work properly
+    $row = array_map(function($value){
+        return $value === "" ? null : $value;
+    },$svContents[$i]);
+    $svInsert->addParameterSet($row);
+}
+$svInsert();
+
+//Update t_sv with software_ids
+oneShot(new Query($conn,"UPDATE t_sv INNER JOIN software USING (mfr_software_no) SET t_sv.software_id = software.software_id"));
+
+//t_sv vehicle_id matching will depend on whether we're working with VINs or vehicle specs.
+switch ($info_type){
+    case "--use-vin":
+        //Wildcard joins are rather slow in MariaDB. Maybe if we use the Velox equivalent...? At very least the optimizer won't have to cope with the CTE.
+        $vinPatterns = new Model(new PreparedStatement($conn,
+            "SELECT vehicle_id, CONCAT(wmi_code,vds_code,'_',year_digit,'%') AS vin_pattern ".
+            "FROM l_WMI ".
+            "INNER JOIN l_VDS USING (wmi_id) ".
+            "INNER JOIN vehicle_identities USING (vehicle_id) "));
+        $svData = new Model(new PreparedStatement($conn,"SELECT vin FROM t_sv"));
+        $match = $svData->join(INNER_JOIN,$vinPatterns,["vin","LIKE","vin_pattern"]);
+        $svUpdate = new PreparedStatement($conn,"UPDATE t_sv SET vehicle_id = :vehicle_id WHERE vin = :vin");
+        for ($i = 0; $i < count($match); $i++){
+            $svUpdate->addParameterSet(["vin"=>$match[$i]["vin"],"vehicle_id"=>$match[$i]["vehicle_id"]]);
+        }
+        $svUpdate();
+        break;
+    case "--use-spec":
+        //TODO: Add vehicle matching based on specifications
+        break;
+}
+
 $resultModel = new Model(new PreparedStatement($conn,"SELECT * FROM nomatch_vpic"));
 
 //$rows = count($resultModel);
