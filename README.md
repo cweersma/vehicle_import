@@ -7,13 +7,13 @@ The git, php8, and php-composer packages must all be installed.
 
   *Note: this is all done on the command line.*
   
-1. Clone this repository
+**1. Clone this repository**
    
    It doesn't matter where you clone this to. Just make sure your user has read/write permissions in the directory.
    ```console
    git clone https://github.com/cweersma/vehicle_import.git
    ```
-2. Install Velox Server
+**2. Install Velox Server**
    
    A composer.json file is included. You will only need to run the `composer install` command to install the Velox Server library.
    ```console
@@ -21,19 +21,24 @@ The git, php8, and php-composer packages must all be installed.
    composer install
    ```
 
-3. Adjust the configuration as necessary
+**3. Adjust the configuration as necessary**
 
    This script uses credentials stored in `inc/connection.php` to connect to the approprate database. This file must be edited to provide the correct details.
    ```console
    nano inc/connection.php
    ```
+   
+---  
 
-3. Prepare a hardware/software CSV.
+   Depending on which information needs to be imported, either or both of 4 and 5 can be done, but at least one is required. The CSV files created must
+   have a header row; the column names in this header row do not matter (the order of the columns will be followed irrespective of heading), but the import will
+   always start from row 2.
+   
+---
+   
+**4. Prepare a hardware/software CSV.**
 
    This CSV must have two columns. The first column must contain hardware numbers, and the second should contain software numbers. Every row must contain both.
-
-   *import.php expects each CSV file to have a header row. The column names in this header row do not matter (the order of the columns will be followed irrespective of heading)
-   but the import will always start from row 2.*
 
    | hardware | software |
    | -------- | -------- |
@@ -41,7 +46,7 @@ The git, php8, and php-composer packages must all be installed.
    | 123456   | 321987   |
    | 789123   | 456789   |
 
-5. Prepare a software/vehicle CSV.
+**5. Prepare a software/vehicle CSV.**
 
    This CSV must have software numbers as its first column. Vehicle information can be provided in one of two ways: by VIN or by specification (year/make/model, etc.)
 
@@ -72,14 +77,14 @@ The git, php8, and php-composer packages must all be installed.
    | 321987   | Chevrolet | S-10 Pickup | 1998 | 2.2          | gasoline    |      | 1/2 Ton Nominal |
    | 456789   | Acura     | Integra     | 1989 | 1.6          |             | LS   |                 |
 
-6. Upload these files to the server and note their location.
+**6. Upload these files to the server and note their location.**
 
 ## Execution
 
-import.php is run from the command line, and takes three flags: --hs, --sv, and either of --use-vin or --use-spec. The --hs
-flag specifies the location of the hardware/software CSV from step 3; --sv specifies the location the software/vehicle CSV
-from step 4. --use-vin indicates that VINs are provided in the software/vehicle CSV, while --use-spec indicates that
-specifications are provided instead. It does not matter which order these flags are specified.
+import.php is run from the command line, and takes one or both of the --hs and --sv flags; if the --sv flag is used,
+exactly one of either --use-vin or --use-spec is also required. The --hs flag specifies the location of the hardware/software CSV from step 3; --sv
+specifies the location the software/vehicle CSV from step 4. --use-vin indicates that VINs are provided in the software/vehicle CSV,
+while --use-spec indicates that specifications are provided instead. It does not matter which order these flags are specified.
 
 ```console
  ./import.php --hs /path/to/hardware_software.csv --sv /path/to/software_vehicle.csv --use-vin
