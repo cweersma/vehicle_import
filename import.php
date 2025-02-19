@@ -274,6 +274,7 @@ $createUnmatchedVehicleTable_SQL = "CREATE TABLE IF NOT EXISTS t_unmatched_vehic
     "`vehicle_trim` VARCHAR(100), ".
     "`engine_type_name` VARCHAR(255),".
     "`matched` BOOL DEFAULT FALSE ".
+    "`vehicle_id` INT(11) UNSIGNED ".
     "UNIQUE (vin_pattern)";
 
 oneShot(new Query($conn,$createUnmatchedVehicleTable_SQL));
@@ -286,7 +287,7 @@ oneShot(new Query($conn,"INSERT IGNORE INTO l_VDS (vds_code, wmi_id) SELECT DIST
 //Populate the table we just created with VIN patterns consisting of all distinct WMI+VDS components matched with
 //all possible year digits (this lets us query for vehicles that we may not yet have sold for)
 $populateUnmatchedVehicle_SQL = "INSERT INTO t_unmatched_vehicles (vin_pattern, vds_id, year_digit, expected_year) ".
-    "SELECT CONCAT(first8,'_',digit), vds_id, digit, if(substring(first8,7,1) regexp '[0-9]', sequence, sequence + 30)".
+    "SELECT CONCAT(first8,'_',digit,'%'), vds_id, digit, if(substring(first8,7,1) regexp '[0-9]', sequence, sequence + 30)".
     "FROM (SELECT DISTINCT LEFT(vin,8) as first8 FROM t_sv) AS partialVin ".
     "CROSS JOIN l_yearDigits ";
 
@@ -294,8 +295,9 @@ oneShot(new PreparedStatement($conn,$populateUnmatchedVehicle_SQL));
 
 //Do the same thing for software; after this we are no longer dependent on t_sv to complete the job
 $createUnmatchedSoftwareTable_SQL = "CREATE TABLE IF NOT EXISTS t_unmatched_software (".
-    "`vin_pattern` VARCHAR(17) NOT NULL".
-    "`software_id` INT(11) UNSIGNED)";
+    "`vin_pattern` VARCHAR(17) NOT NULL, ".
+    "`software_id` INT(11) UNSIGNED, ".
+    "`matched` BOOL DEFAULT FALSE)";
 
 oneShot(new Query($conn,$createUnmatchedSoftwareTable_SQL));
 
@@ -556,4 +558,33 @@ if ($insertCount > 0){
 	echo "Inserting $insertCount identities...\n";
 	$identitiesModel->insert($insertArray);
 }
+
+//Perform matching against new identities
+oneShot(new PreparedStatement($conn,
+    "WITH currentPatterns AS (SELECT vehicle_id, CONCAT(wmi_code,vds_code,'_',year_digit,'%') AS vin_pattern ".
+                "FROM l_WMI ".
+                "INNER JOIN l_VDS USING (wmi_id) ".
+                "INNER JOIN vehicle_identities USING (vehicle_id) )".
+        "UPDATE t_unmatched_vehicles ".
+        "INNER JOIN currentPatterns USING (vin_pattern) ".
+        "SET t_unmatched_vehicles.vehicle_id = currentPatterns.vehicle_id"));
+
+//Match software to new vehicle_ids
+oneShot(new Query($conn,
+    "INSERT INTO vehicle_software_map (vehicle_id, software_id) ".
+        "SELECT vehicle_id, software_id ".
+        "FROM t_unmatched_vehicles ".
+        "INNER JOIN t_unmatched_software USING (vin_pattern)"
+));
+
+//Finally, delete all matched rows from the t_ tables (and delete the tables entirely if all rows are matched)
+oneShot(new Query($conn,
+   "DELETE t_unmatched_software FROM t_unmatched_software ".
+       "INNER JOIN t_unmatched_vehicles USING (vin_pattern)".
+       "INNER JOIN vehicle_software_map USING (vehicle_id, software_id)"
+));
+
+oneShot(new Query($conn,
+    "DELETE FROM t_unmatched_vehicles WHERE matched = TRUE"
+));
 
