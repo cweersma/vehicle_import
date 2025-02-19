@@ -6,7 +6,6 @@ $url = "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVINValuesBatch/";
 include_once "vendor/autoload.php";
 include_once "inc/connection.php";
 
-
 use KitsuneTech\Velox\Database\Connection;
 use KitsuneTech\Velox\Structures\Model;
 use KitsuneTech\Velox\Database\Procedures\{Query, PreparedStatement, StatementSet, Transaction};
@@ -19,11 +18,15 @@ use function KitsuneTech\Velox\Transport\Export;
  * @return void
  */
 function printUsage(): void {
-    echo "Usage: ./import.php --hs <hardware/software CSV> --sv <software/vehicle CSV> <vehicle info flag>\n";
+    echo "Usage: ./import.php [resume type flag] --hs <hardware/software CSV> --sv <software/vehicle CSV> <vehicle info flag>\n";
     echo "\n";
     echo "Vehicle info flags:\n";
     echo "    --use-vin     The software/vehicle CSV contains VINs.\n";
     echo "    --use-spec    The software/vehicle CSV contains vehicle specifications.\n";
+    echo "\n";
+    echo "Resume type flags:\n";
+    echo "    --resume-vpic           Resume pending vPIC API calls\n";
+    echo "    --resume-processing     Skip any pending vPIC API calls and process results that have already arrived\n";
     echo "\n";
     die ("See README.md for more detailed information.\n\n");
 }
@@ -31,6 +34,7 @@ function printUsage(): void {
 $hs = null;
 $sv = null;
 $info_type = null;
+$resume_type = null;
 $hsPointer = null;
 $svPointer = null;
 $hsContents = [];
@@ -56,14 +60,32 @@ for ($i=0; $i < count($arguments); $i++) {
                 $info_type = $arguments[$i];
             }
             else {
-                echo "import.php requires exactly one of --use-vin or --use-spec.\n\n";
+                echo "--use-vin and --use-spec cannot both be specified.\n\n";
                 printUsage();
             }
             break;
         case '--verbose':
             $verbose = true;
             break;
+        case '--resume-vpic':
+        case '--resume-processing':
+            if (!$resume_type) {
+                $resume_type = $arguments[$i];
+            }
+            else {
+                echo "--resume-vpic and --resume-processing cannot both be specified.\n\n";
+                printUsage();
+            }
+            break;
     }
+}
+
+//If a resume type is specified, skip straight to the appropriate section
+switch ($resume_type){
+    case '--resume-vpic':
+        goto resume_vpic;
+    case '--resume-processing':
+        goto resume_processing;
 }
 
 if (!$hs && !$sv) {
@@ -226,28 +248,88 @@ switch ($info_type){
         break;
 }
 
-$resultModel = new Model(new PreparedStatement($conn,"SELECT * FROM nomatch_vpic"));
+//Update vehicle/software matches in vehicle_software_map based on the matches we've gotten so far. We'll run this query again at the end.
+$insertVSM_SQL = "INSERT INTO vehicle_software_map (vehicle_id, software_id) ".
+                    "SELECT vehicle_id, software_id FROM t_sv ".
+                    "LEFT JOIN vehicle_software_map ON vehicle_software_map.vehicle_id = t_sv.vehicle_id AND vehicle_software_map.software_id = t_sv.software_id ".
+                    "WHERE vehicle_software_map.vehicle_id IS NULL AND vehicle_software_map.software_id IS NULL";
 
-//$rows = count($resultModel);
-$startIndex = 1000;
-$rows = 1000;
+$insertVSM = new Query($conn, $insertVSM_SQL);
+$insertVSM();
+
+// ---- Now we handle VINs that didn't match. ---- //
+
+//Add a non-temporary table to hold unmatched VINs
+// (non-temporary because it can take a while to run all the vPIC API calls and we want to be able to resume if the script ends unexpectedly)
+
+$createUnmatchedVehicleTable_SQL = "CREATE TABLE IF NOT EXISTS t_unmatched_vehicles (".
+    "`vin_pattern` VARCHAR(17) NOT NULL, ".
+    "`vds_id` INT(11) UNSIGNED, ".
+    "`year_digit` VARCHAR(2), ".
+    "`engine_displacement` DECIMAL(3,1), ".
+    "`make_name` VARCHAR(255), `".
+    "`model_name` VARCHAR(255), `".
+    "`expected_year` SMALLINT(5) UNSIGNED, ".
+    "`vehicle_series` VARCHAR(100), ".
+    "`vehicle_trim` VARCHAR(100), ".
+    "`engine_type_name` VARCHAR(255),".
+    "`matched` BOOL DEFAULT FALSE ".
+    "UNIQUE (vin_pattern)";
+
+oneShot(new Query($conn,$createUnmatchedVehicleTable_SQL));
+
+// Insert WMI/VDS combinations that don't already exist
+oneShot(new Query($conn,"INSERT IGNORE INTO l_WMI (wmi_code) SELECT DISTINCT LEFT(vin,3) FROM t_sv"));
+oneShot(new Query($conn,"INSERT IGNORE INTO l_VDS (vds_code, wmi_id) SELECT DISTINCT SUBSTRING(vin,4,5), wmi_id FROM t_sv ".
+                                "INNER JOIN l_WMI ON LEFT(vin,3) = l_wmi.wmi_code"));
+
+//Populate the table we just created with VIN patterns consisting of all distinct WMI+VDS components matched with
+//all possible year digits (this lets us query for vehicles that we may not yet have sold for)
+$populateUnmatchedVehicle_SQL = "INSERT INTO t_unmatched_vehicles (vin_pattern, vds_id, year_digit, expected_year) ".
+    "SELECT CONCAT(first8,'_',digit), vds_id, digit, if(substring(first8,7,1) regexp '[0-9]', sequence, sequence + 30)".
+    "FROM (SELECT DISTINCT LEFT(vin,8) as first8 FROM t_sv) AS partialVin ".
+    "CROSS JOIN l_yearDigits ";
+
+oneShot(new PreparedStatement($conn,$populateUnmatchedVehicle_SQL));
+
+//Do the same thing for software; after this we are no longer dependent on t_sv to complete the job
+$createUnmatchedSoftwareTable_SQL = "CREATE TABLE IF NOT EXISTS t_unmatched_software (".
+    "`vin_pattern` VARCHAR(17) NOT NULL".
+    "`software_id` INT(11) UNSIGNED)";
+
+oneShot(new Query($conn,$createUnmatchedSoftwareTable_SQL));
+
+$populateUnmatchedSoftware_SQL = "INSERT INTO t_unmatched_software (vin_pattern, software_id) ".
+    "SELECT DISTINCT CONCAT(LEFT(vin,8),'_',SUBSTRING(vin,10,1)), software_id ".
+    "FROM t_sv ".
+    "WHERE software_id IS NULL";
+
+
+//If the script dies during the vPIC calls, we can restart the process here with the --resume-vpic flag
+resume_vpic:
+
+if (!isset($conn)) $conn = new Connection($server,$dbname,$mysql_user,$mysql_password);
+
+$unmatchedVins = oneShot(new Query($conn,"SELECT vin_pattern FROM t_unmatched_vehicles WHERE matched = FALSE"));
+$unmatchedVinCount = count($unmatchedVins);
 $batches = [];
 $currentBatch = [];
 
 //Build batches of 50
-for ($i=$startIndex; $i<$rows+$startIndex; $i++){
-	$currentBatch[] = $resultModel[$i];
-	if (count($currentBatch) == 50 || $i == $rows - 1){
+for ($i=0; $i<$unmatchedVinCount; $i++){
+	$currentBatch[] = $unmatchedVins[$i];
+	if (count($currentBatch) == 50 || $i == $unmatchedVinCount - 1){
 		$batches[] = $currentBatch;
 		$currentBatch = [];
 	}
 }
 
-$responseArray = [];
+$updateCriteria = [];
 $batchCount = count($batches);
+$totalValid = 0;
 for ($i=0; $i<$batchCount; $i++){
 	//Concatenate to string
-	$batchStr = implode(";",array_column($batches[$i],"vpicQuery"));
+	$batchStr = implode(";",array_column($batches[$i],"vin_pattern"));
 
 	//Send to VPIC
 	$request = curl_init($url);
@@ -262,33 +344,47 @@ for ($i=0; $i<$batchCount; $i++){
 	}
 	$valid = 0;
 	$responseObj = json_decode($response);
+    $updateUnmatched = new StatementSet($conn,"UPDATE t_unmatched_vehicles SET <<values>> WHERE <<condition>>",Query::QUERY_UPDATE);
 	for ($j=0; $j<count($batches[$i]); $j++){
 		$vinResponse = $responseObj->Results[$j];
 		if ($vinResponse->Model){
-			$responseArray[] = [
-				"vin_pattern"=>$batches[$i][$j]['vpicQuery'],
-				"vds_id"=>$batches[$i][$j]['vds_id'],
-				"year_digit"=>$batches[$i][$j]['year_digit'],
-				"engine_displacement"=>$vinResponse->DisplacementL,
-				"make_name"=>$vinResponse->Make,
-				"model_name"=>$vinResponse->Model,
-				"expected_year"=>$batches[$i][$j]['expected_year'],
-				"model_year"=>$vinResponse->ModelYear,
-				"vehicle_series"=>$vinResponse->Series,
-				"vehicle_trim"=>$vinResponse->Trim,
-				"engine_type_name"=>$vinResponse->FuelTypePrimary
-			];
+            $updateCriteria[] = [
+                "values"=> [
+                    "engine_displacement"=>$vinResponse->DisplacementL,
+                    "make_name"=>$vinResponse->Make,
+                    "model_name"=>$vinResponse->Model,
+                    "model_year"=>$vinResponse->ModelYear,
+                    "vehicle_series"=>$vinResponse->Series,
+                    "vehicle_trim"=>$vinResponse->Trim,
+                    "engine_type_name"=>$vinResponse->FuelTypePrimary,
+                    "matched"=>1
+                ],
+                "where"=> ["vin_pattern"=>["=",$batches[$i][$j]['vin_pattern']]]
+            ];
 			$valid++;
 		}
 	}
+    $totalValid += $valid;
 	echo "Batch $i returned $valid valid vehicles.\n\n";
+
+    //Update the rows for this batch and clear the array for the next iteration
+    $updateUnmatched->addCriteria($updateCriteria);
+    $updateUnmatched();
+    $updateCriteria = [];
 }
-$responseCount = count($responseArray);
-echo "$responseCount valid VIN patterns found in $rows requests.\n\n";
+
+echo "$totalValid valid VIN patterns found in $unmatchedVinCount requests.\n\n";
 
 echo "*** vPIC server requests completed. Processing results... ***\n\n";
 
+//If the script dies during the vPIC calls and we just want to process what didn't make it, we can skip here with --resume-processing
+resume_processing:
+
+if (!isset($conn)) $conn = new Connection($server,$dbname,$mysql_user,$mysql_password);
+
+
 //--------------------------------------------//
+$responseArray = oneShot(new Query($conn,"SELECT * FROM t_unmatched_vehicles WHERE matched = TRUE"));
 
 $incrementAdjustment = new PreparedStatement($conn,"UPDATE l_VDS SET year_increment = :new_increment WHERE vds_id = :vds");
 $vdsAdjustments = [];
@@ -406,7 +502,6 @@ for ($i=0; $i<$responseCount; $i++){
 }
 
 
-
 //--------------------------------------------//
 // Insert into vehicle_identities. vds_id and year_digit are paired as a unique key. model_id is required. vehicle_trim, vehicle_series, engine_displacement, and engine_type_id are optional.
 // engine_type_id defaults to 1 (gasoline). 2 is diesel.
@@ -461,3 +556,4 @@ if ($insertCount > 0){
 	echo "Inserting $insertCount identities...\n";
 	$identitiesModel->insert($insertArray);
 }
+
