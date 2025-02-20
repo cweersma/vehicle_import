@@ -348,7 +348,7 @@ resume_vpic:
 if (!isset($conn)) $conn = new Connection($server,$dbname,$mysql_user,$mysql_password);
 
 if ($verbose) echo "Batching unmatched VINs from t_unmatched_vehicles.\n";
-$unmatchedVins = oneShot(new Query($conn,"SELECT vin_pattern FROM t_unmatched_vehicles WHERE matched = FALSE"));
+$unmatchedVins = oneShot(new Query($conn,"SELECT vin_pattern FROM t_unmatched_vehicles WHERE matched = FALSE"))->getRawData();
 $unmatchedVinCount = count($unmatchedVins);
 $batches = [];
 $currentBatch = [];
