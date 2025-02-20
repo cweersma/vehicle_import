@@ -315,6 +315,8 @@ if ($verbose) echo "Populating t_unmatched_vehicles with necessary data from t_s
 $populateUnmatchedVehicle_SQL = "INSERT INTO t_unmatched_vehicles (vin_pattern, vds_id, year_digit, expected_year) ".
     "SELECT CONCAT(first8,'_',digit,'%'), vds_id, digit, if(substring(first8,7,1) regexp '[0-9]', sequence, sequence + 30)".
     "FROM (SELECT DISTINCT LEFT(vin,8) as first8 FROM t_sv) AS partialVin ".
+    "LEFT JOIN l_WMI ON l_WMI.wmi_code = LEFT(first8,3) ".
+    "LEFT JOIN l_VDS ON l_WMI.wmi_id = l_VDS.wmi_id AND l_VDS.vds_code = SUBSTRING(first8,4,5) ".
     "CROSS JOIN l_yearDigits ";
 
 oneShot(new PreparedStatement($conn,$populateUnmatchedVehicle_SQL));
