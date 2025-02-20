@@ -224,20 +224,15 @@ oneShot(new Query($conn,"UPDATE t_sv INNER JOIN software USING (mfr_software_no)
 //t_sv vehicle_id matching will depend on whether we're working with VINs or vehicle specs.
 switch ($info_type){
     case "--use-vin":
-        //Wildcard joins are rather slow in MariaDB. Maybe if we use the Velox equivalent...? At very least the optimizer won't have to cope with the CTE.
-        if ($verbose) echo "Updating software/vehicle temp table with VIN matches from existing data.\n";
-
-        $vinPatterns = new Model(new PreparedStatement($conn,
-            "SELECT vehicle_id, CONCAT(wmi_code,vds_code,'_',year_digit,'%') AS vin_pattern ".
-            "FROM l_WMI ".
-            "INNER JOIN l_VDS USING (wmi_id) ".
-            "INNER JOIN vehicle_identities USING (vds_id) "));
-        $svData = new Model(new PreparedStatement($conn,"SELECT vin FROM t_sv"));
-        $match = $svData->join(INNER_JOIN,$vinPatterns,["vin","LIKE","vin_pattern"]);
-        $svUpdate = new PreparedStatement($conn,"UPDATE t_sv SET vehicle_id = :vehicle_id WHERE vin = :vin");
-        for ($i = 0; $i < count($match); $i++){
-            $svUpdate->addParameterSet(["vin"=>$match[$i]["vin"],"vehicle_id"=>$match[$i]["vehicle_id"]]);
-        }
+        if ($verbose) echo "Updating software/vehicle temp table with VIN matches from existing data. (This might take a while...)\n";
+        $vinSQL = "WITH vins AS (".
+                "SELECT vehicle_id, CONCAT(wmi_code,vds_code,'_',year_digit,'%') AS vin_pattern ".
+                "FROM l_WMI ".
+                "INNER JOIN l_VDS USING (wmi_id) ".
+                "INNER JOIN vehicle_identities USING (vds_id) ".
+            ") ".
+            "UPDATE t_sv INNER JOIN vins ON t_sv.vin LIKE vins.vin_pattern SET t_sv.vehicle_id = vins.vehicle_id";
+        $svUpdate = new PreparedStatement($conn,$vinSQL);
         $svUpdate();
         break;
     case "--use-spec":
