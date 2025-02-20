@@ -446,7 +446,7 @@ foreach ($unmatchedMakes as $make){
     $makeInsert->addParameterSet(["make_name"=>$make]);
 }
 $makeInsert();
-$currentMakes = oneShot(new PreparedStatement($conn, "SELECT make_id, make_name FROM l_makes"))[0];
+$currentMakes = oneShot(new PreparedStatement($conn, "SELECT make_id, make_name FROM l_makes"))[0]->getRawData();
 $currentMakeArray = [];
 foreach ($currentMakes as $makeRow){
     $currentMakeArray[$makeRow['make_name']] = $makeRow['make_id'];
