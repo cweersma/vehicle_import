@@ -142,9 +142,9 @@ if ($hs){
     oneShot(new Query($conn, "CREATE TEMPORARY TABLE t_hs (`inventory_no` VARCHAR(255) NOT NULL,`mfr_software_no` VARCHAR(255) NOT NULL))"));
 
     //INSERT IGNORE here, along with the NOT NULL and CHECK constraints, sanitize the data for rows missing data; this is thrown out in the process of the INSERT
-    $hsInsert = new PreparedStatement($conn, "INSERT IGNORE INTO t_hs (inventory_no, mfr_software_no) VALUES(?,?)");
+    $hsInsert = new PreparedStatement($conn, "INSERT IGNORE INTO t_hs (inventory_no, mfr_software_no) VALUES(:0,:1)");
     for ($i = 0; $i < count($hsContents); $i++){
-
+        if (in_array('',$hsContents[$i])) continue;     //Skip any lines that have empty strings for either value
         $hsInsert->addParameterSet($hsContents[$i]);
     }
     $hsInsert();
