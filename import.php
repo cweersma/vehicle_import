@@ -439,11 +439,13 @@ for ($i=0; $i<$responseCount; $i++){
 		$vdsAdjustments[$vds] = $adjustment;
 	}
 }
-if ($verbose) echo "Adjusting year increments for ".count($vdsAdjustments)." vds_id's.\n\n";
-foreach ($vdsAdjustments as $vds => $adjustment){
-	$incrementAdjustment->addParameterSet(["new_increment"=>$adjustment,"vds"=>$vds]);
+if (count($vdsAdjustments > 0)){
+    if ($verbose) echo "Adjusting year increments for ".count($vdsAdjustments)." vds_id's.\n\n";
+    foreach ($vdsAdjustments as $vds => $adjustment){
+        $incrementAdjustment->addParameterSet(["new_increment"=>$adjustment,"vds"=>$vds]);
+    }
+    $incrementAdjustment();
 }
-$incrementAdjustment();
 
 //--------------------------------------------//
 
