@@ -158,8 +158,8 @@ if ($hs){
     foreach ($hsQueries as $query){
         $hsTransaction->addQuery($query);
     }
-    $hsTransaction();
-    oneShot(new Query($conn,"DROP TABLE t_hs"));
+    $hsTransaction->begin();
+    $hsTransaction->executeAll(true);
 }
 
 if (!$sv) {
