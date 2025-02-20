@@ -437,7 +437,7 @@ oneShot(new Query($conn, "UPDATE l_VDS INNER JOIN t_unmatched_vehicles USING (vd
 
 if ($verbose) echo "Synchronizing l_makes...\n\n";
 
-$makeInsert = new PreparedStatement($conn, "INSERT IGNORE INTO l_makes (make_name) VALUES (:make_name)"));
+$makeInsert = new PreparedStatement($conn, "INSERT IGNORE INTO l_makes (make_name) VALUES (:make_name)");
 //vPIC sends makes in all upper-case, so we need to convert them to title case to make them consistent with what we use.
 array_walk($responseArray,function(&$elem, $key){ if ($elem['make_name']) $elem['make_name'] = ucwords(strtolower($elem['make_name'])); });
 
