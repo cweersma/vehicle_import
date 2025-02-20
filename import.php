@@ -298,8 +298,8 @@ $createUnmatchedVehicleTable_SQL = "CREATE TABLE IF NOT EXISTS t_unmatched_vehic
     "`vehicle_series` VARCHAR(100), ".
     "`vehicle_trim` VARCHAR(100), ".
     "`engine_type_name` VARCHAR(255),".
-    "`matched` BOOL DEFAULT FALSE ".
-    "`vehicle_id` INT(11) UNSIGNED ".
+    "`matched` BOOL DEFAULT FALSE, ".
+    "`vehicle_id` INT(11) UNSIGNED, ".
     "UNIQUE (vin_pattern)";
 
 
