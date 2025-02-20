@@ -437,32 +437,22 @@ oneShot(new Query($conn, "UPDATE l_VDS INNER JOIN t_unmatched_vehicles USING (vd
 
 if ($verbose) echo "Synchronizing l_makes...\n\n";
 
+$makeInsert = new PreparedStatement($conn, "INSERT IGNORE INTO l_makes (make_name) VALUES (:make_name)"));
 //vPIC sends makes in all upper-case, so we need to convert them to title case to make them consistent with what we use.
 array_walk($responseArray,function(&$elem, $key){ if ($elem['make_name']) $elem['make_name'] = ucwords(strtolower($elem['make_name'])); });
 
-$makes = array_values(array_unique(array_column($responseArray,"make_name")));
-
-$makesModel = new Model(
-	new PreparedStatement($conn, "SELECT make_id, make_name FROM l_makes"),
-	null,
-	new PreparedStatement($conn, "INSERT IGNORE INTO l_makes (make_name) VALUES (:make)")
-);
-$insertMakes = array_values(array_diff($makes, array_column($makesModel->data(),"make_name")));
-$insertCount = count($insertMakes);
-if ($insertCount > 0){
-    if ($verbose) echo "Inserting $insertCount new makes...\n\n";
-	$insertRows = [];
-	for ($i=0; $i<$insertCount; $i++){
-		$insertRows[] = ["make"=>$insertMakes[$i]];
-	}
-	$makesModel->insert($insertRows);
+$unmatchedMakes = array_values(array_unique(array_column($responseArray,"make_name")));
+foreach ($unmatchedMakes as $make){
+    $makeInsert->addParameterSet(["make_name"=>$make]);
 }
-$makesArray = [];
-for ($i=0; $i<count($makesModel); $i++){
-	$makesArray[$makesModel[$i]["make_name"]] = $makesModel[$i]["make_id"];
+$makeInsert();
+$currentMakes = oneShot(new PreparedStatement($conn, "SELECT make_id, make_name FROM l_makes"))[0];
+$currentMakeArray = [];
+foreach ($currentMakes as $makeRow){
+    $currentMakeArray[$makeRow['make_name']] = $makeRow['make_id'];
 }
 for ($i=0; $i<$responseCount; $i++){
-    if ($responseArray[$i]["make_name"]) $responseArray[$i]["make_id"] = $makesArray[$responseArray[$i]["make_name"]];
+    if ($responseArray[$i]["make_name"]) $responseArray[$i]["make_id"] = $currentMakeArray[$responseArray[$i]["make_name"]];
 }
 
 //--------------------------------------------//
