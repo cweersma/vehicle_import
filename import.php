@@ -323,7 +323,7 @@ $populateUnmatchedVehicle_SQL = "INSERT INTO t_unmatched_vehicles (vin_pattern, 
     "LEFT JOIN l_VDS ON l_WMI.wmi_id = l_VDS.wmi_id AND l_VDS.vds_code = SUBSTRING(first8,4,5) ".
     "CROSS JOIN l_yearDigits ";
 
-oneShot(new PreparedStatement($conn,$populateUnmatchedVehicle_SQL));
+oneShot(new Query($conn,$populateUnmatchedVehicle_SQL));
 
 if ($verbose) echo "Creating t_unmatched_software table if it doesn't already exist.\n";
 //Do the same thing for software; after this we are no longer dependent on t_sv to complete the job
@@ -340,6 +340,7 @@ $populateUnmatchedSoftware_SQL = "INSERT INTO t_unmatched_software (vin_pattern,
     "FROM t_sv ".
     "WHERE software_id IS NULL";
 
+oneShot(new Query($conn,$populateUnmatchedSoftware_SQL));
 
 //If the script dies during the vPIC calls, we can restart the process here with the --resume-vpic flag
 resume_vpic:
