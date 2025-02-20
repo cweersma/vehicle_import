@@ -476,7 +476,7 @@ for ($i=0; $i<count($makesModel); $i++){
 	$makesArray[$makesModel[$i]["make_name"]] = $makesModel[$i]["make_id"];
 }
 for ($i=0; $i<$responseCount; $i++){
-	$responseArray[$i]["make_id"] = $makesArray[$responseArray[$i]["make_name"]];
+    if ($responseArray[$i]["make_name"]) $responseArray[$i]["make_id"] = $makesArray[$responseArray[$i]["make_name"]];
 }
 
 //--------------------------------------------//
