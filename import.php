@@ -427,7 +427,7 @@ if (!isset($conn)) $conn = new Connection($server,$dbname,$mysql_user,$mysql_pas
 
 //--------------------------------------------//
 if ($verbose) echo "Retrieving vPIC-matched vehicles from t_unmatched_vehicles.";
-$responseArray = oneShot(new Query($conn,"SELECT * FROM t_unmatched_vehicles WHERE matched = TRUE"));
+$responseArray = oneShot(new Query($conn,"SELECT * FROM t_unmatched_vehicles WHERE matched = 1"));
 $responseCount = count($responseArray);
 
 $incrementAdjustment = new PreparedStatement($conn,"UPDATE l_VDS SET year_increment = :new_increment WHERE vds_id = :vds");
