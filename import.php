@@ -209,11 +209,19 @@ oneShot(new Query($conn, $svTableSQL));
 if ($verbose) echo "Inserting CSV data into software/vehicle temp table.\n";
 $svInsert = new PreparedStatement($conn,$svInsertSQL);
 for ($i = 0; $i < count($svContents); $i++){
-    //Replace all empty strings with nulls here; this will allow the NOT NULL constraints we set to work properly
-    $row = array_map(function($value){
-        return $value === "" ? null : $value;
-    },$svContents[$i]);
-    $svInsert->addParameterSet($row);
+    for ($i = 0; $i < count($svContents); $i++){
+        $rowHasData = false;
+        for ($j = 0; $j < count($svContents[$i]); $j++){
+            if ($svContents[$i][$j] == '') {
+                $rowHasEmptyString = true;
+                $svContents[$i][$j] = null;
+            }
+            else {
+                $rowHasData = true;
+            }
+        }
+        if ($rowHasData) $svInsert->addParameterSet($svContents[$i]);
+    }
 }
 
 $svInsert();
