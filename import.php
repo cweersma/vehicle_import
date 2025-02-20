@@ -231,7 +231,7 @@ switch ($info_type){
             "SELECT vehicle_id, CONCAT(wmi_code,vds_code,'_',year_digit,'%') AS vin_pattern ".
             "FROM l_WMI ".
             "INNER JOIN l_VDS USING (wmi_id) ".
-            "INNER JOIN vehicle_identities USING (vehicle_id) "));
+            "INNER JOIN vehicle_identities USING (vds_id) "));
         $svData = new Model(new PreparedStatement($conn,"SELECT vin FROM t_sv"));
         $match = $svData->join(INNER_JOIN,$vinPatterns,["vin","LIKE","vin_pattern"]);
         $svUpdate = new PreparedStatement($conn,"UPDATE t_sv SET vehicle_id = :vehicle_id WHERE vin = :vin");
