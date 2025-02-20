@@ -173,7 +173,7 @@ $svInsertSQL = "INSERT IGNORE INTO t_sv (mfr_software_no, ";
 switch ($info_type) {
     case '--use-vin':
         $svTableSQL .= "`vin` VARCHAR(17) NOT NULL, ";
-        $svInsertSQL .= "vin, ";
+        $svInsertSQL .= "vin)";
         $colCount = 2;
         break;
     case '--use-spec':
