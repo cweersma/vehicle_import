@@ -443,7 +443,7 @@ array_walk($responseArray,function(&$elem, $key){ if ($elem['make_name']) $elem[
 
 $unmatchedMakes = array_values(array_unique(array_column($responseArray,"make_name")));
 foreach ($unmatchedMakes as $make){
-    $makeInsert->addParameterSet(["make_name"=>$make]);
+    if ($make) $makeInsert->addParameterSet(["make_name"=>$make]);
 }
 $makeInsert();
 $currentMakes = oneShot(new PreparedStatement($conn, "SELECT make_id, make_name FROM l_makes"))[0];
