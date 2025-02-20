@@ -86,8 +86,10 @@ exactly one of either --use-vin or --use-spec is also required. The --hs flag sp
 specifies the location the software/vehicle CSV from step 4. --use-vin indicates that VINs are provided in the software/vehicle CSV,
 while --use-spec indicates that specifications are provided instead. It does not matter which order these flags are specified.
 
+This script runs silently by default unless an error occurs. To see status messages, include the --verbose flag.
+
 ```console
- ./import.php --hs /path/to/hardware_software.csv --sv /path/to/software_vehicle.csv --use-vin
+ ./import.php --hs /path/to/hardware_software.csv --sv /path/to/software_vehicle.csv --use-vin --verbose
 ```
 
 
