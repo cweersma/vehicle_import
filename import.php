@@ -387,7 +387,7 @@ for ($i=0; $i<$batchCount; $i++){
 	for ($j=0; $j<count($batches[$i]); $j++){
 		$vinResponse = $responseObj->Results[$j];
 		if ($vinResponse->Model){
-            $updateCriteria = [
+            $updateCriteria[] = [
                 "values"=> [
                     "engine_displacement"=>$vinResponse->DisplacementL,
                     "make_name"=>$vinResponse->Make,
@@ -400,7 +400,6 @@ for ($i=0; $i<$batchCount; $i++){
                 ],
                 "where"=> ["vin_pattern"=>["=",$batches[$i][$j]['vin_pattern']]]
             ];
-            $updateUnmatched->addCriteria($updateCriteria);
 			$valid++;
 		}
 	}
@@ -408,6 +407,7 @@ for ($i=0; $i<$batchCount; $i++){
     if ($verbose) echo "Batch $i returned $valid valid vehicles.\n\n";
 
     //Update the rows for this batch and clear the array for the next iteration
+    $updateUnmatched->addCriteria($updateCriteria);
     $updateUnmatched();
     $updateCriteria = [];
 }
