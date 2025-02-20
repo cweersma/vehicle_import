@@ -233,13 +233,13 @@ oneShot(new Query($conn,"UPDATE t_sv INNER JOIN software USING (mfr_software_no)
 switch ($info_type){
     case "--use-vin":
         if ($verbose) echo "Updating software/vehicle temp table with VIN matches from existing data. (This might take a while...)\n";
-        $vinSQL = "WITH vins AS (".
+        $vinSQL =
+            "UPDATE t_sv INNER JOIN (".
                 "SELECT vehicle_id, CONCAT(wmi_code,vds_code,'_',year_digit,'%') AS vin_pattern ".
                 "FROM l_WMI ".
                 "INNER JOIN l_VDS USING (wmi_id) ".
                 "INNER JOIN vehicle_identities USING (vds_id) ".
-            ") ".
-            "UPDATE t_sv INNER JOIN vins ON t_sv.vin LIKE vins.vin_pattern SET t_sv.vehicle_id = vins.vehicle_id";
+            ") AS vins ON t_sv.vin LIKE vins.vin_pattern SET t_sv.vehicle_id = vins.vehicle_id";
         $svUpdate = new PreparedStatement($conn,$vinSQL);
         $svUpdate();
         break;
