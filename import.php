@@ -468,7 +468,7 @@ $modelsModel = new Model(
 $responseModels = [];
 $storedModels = [];
 for ($i=0; $i<$responseCount; $i++){
-	$responseModels[] = json_encode(["make_id" => $responseArray[$i]["make_id"], "model_name" => $responseArray[$i]["model_name"]]);
+	if ($responseArray[$i]["model_name"]) $responseModels[] = json_encode(["make_id" => $responseArray[$i]["make_id"], "model_name" => $responseArray[$i]["model_name"]]);
 }
 for ($i=0; $i<count($modelsModel); $i++){
 	$storedModels[$modelsModel[$i]["model_id"]] = json_encode(["make_id" => $modelsModel[$i]["make_id"], "model_name" => $modelsModel[$i]["model_name"]]);
