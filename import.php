@@ -398,13 +398,13 @@ for ($i=0; $i<$batchCount; $i++){
                     "engine_type_name"=>$vinResponse->FuelTypePrimary,
                     "matched"=>1
                 ],
-                "where"=> ["vin_pattern"=>["=",$batches[$i][$j]['vin_pattern']]]
+                "where"=> [["vin_pattern"=>["=",$batches[$i][$j]['vin_pattern']]]]
             ];
 			$valid++;
 		}
 	}
     $totalValid += $valid;
-    if ($verbose) echo "Batch $i returned $valid valid vehicles.\n\n";
+    if ($verbose) echo "Batch ".$i+1." returned $valid valid vehicles.\n\n";
 
     //Update the rows for this batch and clear the array for the next iteration
     $updateUnmatched->addCriteria($updateCriteria);
