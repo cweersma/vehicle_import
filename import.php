@@ -292,8 +292,8 @@ $createUnmatchedVehicleTable_SQL = "CREATE TABLE IF NOT EXISTS t_unmatched_vehic
     "`vds_id` INT(11) UNSIGNED, ".
     "`year_digit` VARCHAR(2), ".
     "`engine_displacement` DECIMAL(3,1), ".
-    "`make_name` VARCHAR(255), `".
-    "`model_name` VARCHAR(255), `".
+    "`make_name` VARCHAR(255), ".
+    "`model_name` VARCHAR(255), ".
     "`expected_year` SMALLINT(5) UNSIGNED, ".
     "`vehicle_series` VARCHAR(100), ".
     "`vehicle_trim` VARCHAR(100), ".
