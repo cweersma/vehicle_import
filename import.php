@@ -424,8 +424,11 @@ resume_processing:
 
 if (!isset($conn)) $conn = new Connection($server,$dbname,$mysql_user,$mysql_password);
 
-
 //--------------------------------------------//
+
+//Clear out any rows that were not matched by vPIC
+oneShot(new Query($conn,"DELETE FROM t_unmatched_vehicles WHERE matched = 0"));
+
 if ($verbose) echo "Retrieving vPIC-matched vehicles from t_unmatched_vehicles.\n";
 $responseArray = oneShot(new Query($conn,"SELECT * FROM t_unmatched_vehicles WHERE matched = 1 AND make_name <> '' AND model_name <> ''"));
 $responseCount = count($responseArray);
