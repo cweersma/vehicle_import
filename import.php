@@ -430,22 +430,8 @@ if ($verbose) echo "Retrieving vPIC-matched vehicles from t_unmatched_vehicles.\
 $responseArray = oneShot(new Query($conn,"SELECT * FROM t_unmatched_vehicles WHERE matched = 1 AND make_name <> '' AND model_name <> ''"));
 $responseCount = count($responseArray);
 
-$incrementAdjustment = new PreparedStatement($conn,"UPDATE l_VDS SET year_increment = :new_increment WHERE vds_id = :vds");
-$vdsAdjustments = [];
-for ($i=0; $i<$responseCount; $i++){
-	$adjustment = $responseArray[$i]["model_year"] - $responseArray[$i]["expected_year"];
-	$vds = $responseArray[$i]["vds_id"];
-	if ($adjustment != 0 && !isset($vdsAdjustments[$vds])){
-		$vdsAdjustments[$vds] = $adjustment;
-	}
-}
-if (count($vdsAdjustments) > 0){
-    if ($verbose) echo "Adjusting year increments for ".count($vdsAdjustments)." vds_id's.\n\n";
-    foreach ($vdsAdjustments as $vds => $adjustment){
-        $incrementAdjustment->addParameterSet(["new_increment"=>$adjustment,"vds"=>$vds]);
-    }
-    $incrementAdjustment();
-}
+if ($verbose) echo "Adjusting year increments for vds_id's.\n\n";
+oneShot(new Query($conn, "UPDATE l_VDS INNER JOIN t_unmatched_vehicles USING (vds_id) SET year_increment = t_unmatched_vehicles.model_year - t_unmatched_vehicles.expected_year"));
 
 //--------------------------------------------//
 
