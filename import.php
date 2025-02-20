@@ -459,7 +459,7 @@ $makes = array_values(array_unique(array_column($responseArray,"make_name")));
 $makesModel = new Model(
 	new PreparedStatement($conn, "SELECT make_id, make_name FROM l_makes"),
 	null,
-	new PreparedStatement($conn, "INSERT INTO l_makes (make_name) VALUES (:make)")
+	new PreparedStatement($conn, "INSERT IGNORE INTO l_makes (make_name) VALUES (:make)")
 );
 $insertMakes = array_values(array_diff($makes, array_column($makesModel->data(),"make_name")));
 $insertCount = count($insertMakes);
@@ -486,7 +486,7 @@ if ($verbose) echo "Synchronizing l_models...\n\n";
 $modelsModel = new Model(
 	new PreparedStatement($conn, "SELECT model_id, make_id, model_name FROM l_models"),
 	null,
-	new PreparedStatement($conn, "INSERT INTO l_models (make_id, model_name) VALUES (:make_id, :model_name)")
+	new PreparedStatement($conn, "INSERT IGNORE INTO l_models (make_id, model_name) VALUES (:make_id, :model_name)")
 );
 //Here we need to compare unique combinations of make_id + model_name, so we need to make a combination array for each side
 $responseModels = [];
