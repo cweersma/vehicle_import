@@ -200,7 +200,7 @@ $placeholderArray = [];
 for ($i=0; $i<$colCount; $i++){
     $placeholderArray[$i] = ":".$i;
 }
-$placeholders = implode($placeholderArray);
+$placeholders = implode(',',$placeholderArray);
 $svInsertSQL .= "VALUES ($placeholders)";
 
 if ($verbose) echo "Creating software/vehicle temp table.\n";
