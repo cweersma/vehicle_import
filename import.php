@@ -153,7 +153,7 @@ if ($hs){
     $hsTransaction = new Transaction($conn);
     $hsQueries = [
         new Query($conn,"INSERT IGNORE INTO inventory (inventory_no) SELECT DISTINCT inventory_no FROM t_hs"),
-        new Query($conn, "INSERT IGNORE INTO software (inventory_id, mfr_software_no) SELECT inventory_id, mfr_software_no FROM t_hs INNER JOIN inventory USING (inventory_id)")
+        new Query($conn, "INSERT IGNORE INTO software (inventory_id, mfr_software_no) SELECT inventory_id, mfr_software_no FROM t_hs INNER JOIN inventory USING (inventory_no)")
     ];
     $hsTransaction->begin();
     foreach ($hsQueries as $query){
