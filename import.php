@@ -431,7 +431,7 @@ $responseArray = oneShot(new Query($conn,"SELECT * FROM t_unmatched_vehicles WHE
 $responseCount = count($responseArray);
 
 if ($verbose) echo "Adjusting year increments for vds_id's.\n\n";
-oneShot(new Query($conn, "UPDATE l_VDS INNER JOIN t_unmatched_vehicles USING (vds_id) SET year_increment = t_unmatched_vehicles.model_year - t_unmatched_vehicles.expected_year"));
+oneShot(new Query($conn, "UPDATE l_VDS INNER JOIN t_unmatched_vehicles USING (vds_id) SET year_increment = if(t_unmatched_vehicles.model_year < 2010, 0, 30) where t_unmatched_vehicles.model_year <> t_unmatched_vehicles.expected_year"));
 
 //--------------------------------------------//
 
