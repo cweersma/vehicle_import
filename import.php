@@ -404,7 +404,7 @@ for ($i=0; $i<$batchCount; $i++){
 		}
 	}
     $totalValid += $valid;
-    if ($verbose) echo "Batch ".$i+1." returned $valid valid vehicles.\n\n";
+    if ($verbose) echo "Batch ".($i+1)." returned $valid valid vehicles.\n\n";
 
     //Update the rows for this batch and clear the array for the next iteration
     $updateUnmatched->addCriteria($updateCriteria);
