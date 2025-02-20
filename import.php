@@ -168,7 +168,7 @@ if (!$sv) {
 
 // ----- Everything from here on pertains only to vehicle/software matches. ----- //
 
-$svTableSQL = "CREATE TEMPORARY TABLE t_sv (`mfr_software_no` VARCHAR(255) NOT NULL, ";
+$svTableSQL = "CREATE TABLE IF NOT EXISTS t_sv (`mfr_software_no` VARCHAR(255) NOT NULL, ";
 $svInsertSQL = "INSERT IGNORE INTO t_sv (mfr_software_no, ";
 switch ($info_type) {
     case '--use-vin':
@@ -338,7 +338,7 @@ if ($verbose) echo "Populating t_unmatched_software with necessary data from t_s
 $populateUnmatchedSoftware_SQL = "INSERT INTO t_unmatched_software (vin_pattern, software_id) ".
     "SELECT DISTINCT CONCAT(LEFT(vin,8),'_',SUBSTRING(vin,10,1)), software_id ".
     "FROM t_sv ".
-    "WHERE software_id IS NULL";
+    "WHERE software_id IS NOT NULL";
 
 oneShot(new Query($conn,$populateUnmatchedSoftware_SQL));
 
