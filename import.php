@@ -309,7 +309,7 @@ oneShot(new Query($conn,$createUnmatchedVehicleTable_SQL));
 if ($verbose) echo "Adding missing WMI and VDS records.\n";
 oneShot(new Query($conn,"INSERT IGNORE INTO l_WMI (wmi_code) SELECT DISTINCT LEFT(vin,3) FROM t_sv"));
 oneShot(new Query($conn,"INSERT IGNORE INTO l_VDS (vds_code, wmi_id) SELECT DISTINCT SUBSTRING(vin,4,5), wmi_id FROM t_sv ".
-                                "INNER JOIN l_WMI ON LEFT(vin,3) = l_wmi.wmi_code"));
+                                "INNER JOIN l_WMI ON LEFT(vin,3) = l_WMI.wmi_code"));
 
 if ($verbose) echo "Populating t_unmatched_vehicles with necessary data from t_sv and VIN component tables.\n";
 $populateUnmatchedVehicle_SQL = "INSERT INTO t_unmatched_vehicles (vin_pattern, vds_id, year_digit, expected_year) ".
