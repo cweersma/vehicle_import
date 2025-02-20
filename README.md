@@ -27,13 +27,18 @@ The git, php8, and php-composer packages must all be installed.
    ```console
    nano inc/connection.php
    ```
-   
+
+   *Note: to avoid overwriting this configuration with the default template if the script must be updated from this GitHub repository at any point, run the following line
+   to exclude it from the local repository:*
+   ```console
+   git update-index --skip-worktree inc/connection.php
+   ```
 ---  
 
    Depending on which information needs to be imported, either or both of 4 and 5 can be done, but at least one is required. The CSV files created must
    have a header row; the column names in this header row do not matter (the order of the columns will be followed irrespective of heading), but the import will
    always start from row 2.
-   
+
 ---
    
 **4. Prepare a hardware/software CSV.**
@@ -91,6 +96,5 @@ This script runs silently by default unless an error occurs. To see status messa
 ```console
  ./import.php --hs /path/to/hardware_software.csv --sv /path/to/software_vehicle.csv --use-vin --verbose
 ```
-
 
    
