@@ -336,7 +336,7 @@ oneShot(new Query($conn,$createUnmatchedSoftwareTable_SQL));
 
 if ($verbose) echo "Populating t_unmatched_software with necessary data from t_sv.\n";
 $populateUnmatchedSoftware_SQL = "INSERT INTO t_unmatched_software (vin_pattern, software_id) ".
-    "SELECT DISTINCT CONCAT(LEFT(vin,8),'_',SUBSTRING(vin,10,1)), software_id ".
+    "SELECT DISTINCT CONCAT(LEFT(vin,8),'_',SUBSTRING(vin,10,1),'%'), software_id ".
     "FROM t_sv ".
     "WHERE software_id IS NOT NULL";
 
