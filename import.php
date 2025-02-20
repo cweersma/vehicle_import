@@ -426,7 +426,7 @@ if (!isset($conn)) $conn = new Connection($server,$dbname,$mysql_user,$mysql_pas
 
 
 //--------------------------------------------//
-if ($verbose) echo "Retrieving vPIC-matched vehicles from t_unmatched_vehicles.";
+if ($verbose) echo "Retrieving vPIC-matched vehicles from t_unmatched_vehicles.\n";
 $responseArray = oneShot(new Query($conn,"SELECT * FROM t_unmatched_vehicles WHERE matched = 1"));
 $responseCount = count($responseArray);
 
@@ -452,7 +452,7 @@ if (count($vdsAdjustments) > 0){
 if ($verbose) echo "Synchronizing l_makes...\n\n";
 
 //vPIC sends makes in all upper-case, so we need to convert them to title case to make them consistent with what we use.
-array_walk($responseArray,function(&$elem, $key){ $elem['make_name'] = ucwords(strtolower($elem['make_name'])); });
+array_walk($responseArray,function(&$elem, $key){ if ($elem['make_name']) $elem['make_name'] = ucwords(strtolower($elem['make_name'])); });
 
 $makes = array_values(array_unique(array_column($responseArray,"make_name")));
 
