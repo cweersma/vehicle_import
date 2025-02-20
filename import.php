@@ -137,7 +137,7 @@ $conn = new Connection($server,$dbname,$mysql_user,$mysql_password);
 //Insert all hardware/software numbers
 if ($hs){
     //First dump the entire dataset into a temporary table
-    oneShot(new Query($conn, "CREATE TEMPORARY TABLE t_hs (`inventory_no` VARCHAR(255) NOT NULL,`mfr_software_no` VARCHAR(255) NOT NULL) CONSTRAINT noEmpty CHECK (inventory_no <> '' AND mfr_software_no <> '')"));
+    oneShot(new Query($conn, "CREATE TEMPORARY TABLE t_hs (`inventory_no` VARCHAR(255) NOT NULL,`mfr_software_no` VARCHAR(255) NOT NULL, CONSTRAINT noEmpty CHECK (inventory_no <> '' AND mfr_software_no <> ''))"));
 
     //INSERT IGNORE here, along with the NOT NULL and CHECK constraints, sanitize the data for rows missing data; this is thrown out in the process of the INSERT
     $hsInsert = new PreparedStatement($conn, "INSERT IGNORE INTO t_hs (inventory_no, mfr_software_no) VALUES(?,?)");
