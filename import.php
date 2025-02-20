@@ -172,7 +172,7 @@ $svTableSQL = "CREATE TEMPORARY TABLE t_sv (`mfr_software_no` VARCHAR(255) NOT N
 $svInsertSQL = "INSERT IGNORE INTO t_sv (mfr_software_no, ";
 switch ($info_type) {
     case '--use-vin':
-        $svTableSQL .= "`vin` VARCHAR(17) NOT NULL)";
+        $svTableSQL .= "`vin` VARCHAR(17) NOT NULL, ";
         $svInsertSQL .= "vin, ";
         $colCount = 2;
         break;
