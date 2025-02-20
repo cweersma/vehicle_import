@@ -220,6 +220,10 @@ for ($i = 0; $i < count($svContents); $i++){
                 $rowHasData = true;
             }
         }
+        if ($info_type == '--use-vin'){
+            //Skip any invalid VINs
+            if (!(preg_match("/^(?:([A-HJ-NPR-Z]){3}|\d{3})(?1){2}\d{2}(?:(?1)|\d)(?:\d|X)(?:(?1)+\d+|\d+(?1)+)\d{6}$/i",$svContents[$i][1]))) continue;
+        }
         if ($rowHasData) $svInsert->addParameterSet($svContents[$i]);
     }
 }
