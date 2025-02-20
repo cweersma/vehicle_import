@@ -115,6 +115,7 @@ if ($hsPointer){
     while ($line = fgetcsv($hsPointer)){
         $hsContents[] = array_slice($line,0,2);
     }
+    array_shift($hsContents);
     fclose($hsPointer);
 }
 if ($svPointer){
@@ -128,6 +129,7 @@ if ($svPointer){
                 break;
         }
     }
+    array_shift($svContents);
     fclose($svPointer);
 }
 
