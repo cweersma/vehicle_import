@@ -10,7 +10,6 @@ use KitsuneTech\Velox\Database\Connection;
 use KitsuneTech\Velox\Structures\Model;
 use KitsuneTech\Velox\Database\Procedures\{Query, PreparedStatement, StatementSet, Transaction};
 use function KitsuneTech\Velox\Database\oneShot;
-use function KitsuneTech\Velox\Transport\Export;
 
 /**
  * Simply spits out usage instructions and ends the script.
@@ -141,7 +140,7 @@ if ($hs){
     oneShot(new Query($conn, "CREATE TEMPORARY TABLE t_hs (`inventory_no` VARCHAR(255) NOT NULL,`mfr_software_no` VARCHAR(255) NOT NULL) CONSTRAINT noEmpty CHECK (inventory_no <> '' AND mfr_software_no <> '')"));
 
     //INSERT IGNORE here, along with the NOT NULL and CHECK constraints, sanitize the data for rows missing data; this is thrown out in the process of the INSERT
-    $hsInsert = new PreparedStatement("INSERT IGNORE INTO t_hs (inventory_no, mfr_software_no) VALUES(?,?)");
+    $hsInsert = new PreparedStatement($conn, "INSERT IGNORE INTO t_hs (inventory_no, mfr_software_no) VALUES(?,?)");
     for ($i = 0; $i < count($hsContents); $i++){
         $hsInsert->addParameterSet($hsContents[$i]);
     }
@@ -196,7 +195,11 @@ $svTableSQL .= "`vehicle_id` INT(11) UNSIGNED)";
 //Creates an "?,?,?" string of the appropriate length
 $placeholders = implode(",",str_split(str_repeat('?',$colCount)));
 $svInsertSQL .= "VALUES ($placeholders)";
+
+if ($verbose) echo "Creating software/vehicle temp table.\n";
 oneShot(new Query($conn, $svTableSQL));
+
+if ($verbose) echo "Inserting CSV data into software/vehicle temp table.\n";
 $svInsert = new PreparedStatement($conn,$svInsertSQL);
 for ($i = 0; $i < count($svContents); $i++){
     //Replace all empty strings with nulls here; this will allow the NOT NULL constraints we set to work properly
@@ -205,15 +208,18 @@ for ($i = 0; $i < count($svContents); $i++){
     },$svContents[$i]);
     $svInsert->addParameterSet($row);
 }
+
 $svInsert();
 
-//Update t_sv with software_ids
+if ($verbose) echo "Matching software numbers with existing records.\n";
 oneShot(new Query($conn,"UPDATE t_sv INNER JOIN software USING (mfr_software_no) SET t_sv.software_id = software.software_id"));
 
 //t_sv vehicle_id matching will depend on whether we're working with VINs or vehicle specs.
 switch ($info_type){
     case "--use-vin":
         //Wildcard joins are rather slow in MariaDB. Maybe if we use the Velox equivalent...? At very least the optimizer won't have to cope with the CTE.
+        if ($verbose) echo "Updating software/vehicle temp table with VIN matches from existing data.\n";
+
         $vinPatterns = new Model(new PreparedStatement($conn,
             "SELECT vehicle_id, CONCAT(wmi_code,vds_code,'_',year_digit,'%') AS vin_pattern ".
             "FROM l_WMI ".
@@ -228,6 +234,8 @@ switch ($info_type){
         $svUpdate();
         break;
     case "--use-spec":
+        if ($verbose) echo "Updating software/vehicle temp table with vehicle spec matches from existing data.\n";
+
         $specSQL = "WITH vehicles AS (".
                         "SELECT make_name, model_name, IF(model_year IS NOT NULL, model_year, sequence + year_increment) AS model_year, ".
                         "engine_displacement, trim, series FROM vehicle_identities ".
@@ -248,20 +256,25 @@ switch ($info_type){
         break;
 }
 
-//Update vehicle/software matches in vehicle_software_map based on the matches we've gotten so far. We'll run this query again at the end.
+
+if ($verbose) echo "Updating vehicle_software_map with matches on existing data.\n";
 $insertVSM_SQL = "INSERT INTO vehicle_software_map (vehicle_id, software_id) ".
                     "SELECT vehicle_id, software_id FROM t_sv ".
                     "LEFT JOIN vehicle_software_map ON vehicle_software_map.vehicle_id = t_sv.vehicle_id AND vehicle_software_map.software_id = t_sv.software_id ".
                     "WHERE vehicle_software_map.vehicle_id IS NULL AND vehicle_software_map.software_id IS NULL";
 
 $insertVSM = new Query($conn, $insertVSM_SQL);
+
 $insertVSM();
 
-// ---- Now we handle VINs that didn't match. ---- //
+
+if ($verbose) echo "All possible matching done from existing data in NIS. Preparing for vPIC API calls for unmatched VINs...\n";
+
 
 //Add a non-temporary table to hold unmatched VINs
 // (non-temporary because it can take a while to run all the vPIC API calls and we want to be able to resume if the script ends unexpectedly)
 
+if ($verbose) echo "Creating t_unmatched_vehicles table if it doesn't already exist.\n";
 $createUnmatchedVehicleTable_SQL = "CREATE TABLE IF NOT EXISTS t_unmatched_vehicles (".
     "`vin_pattern` VARCHAR(17) NOT NULL, ".
     "`vds_id` INT(11) UNSIGNED, ".
@@ -277,15 +290,15 @@ $createUnmatchedVehicleTable_SQL = "CREATE TABLE IF NOT EXISTS t_unmatched_vehic
     "`vehicle_id` INT(11) UNSIGNED ".
     "UNIQUE (vin_pattern)";
 
+
 oneShot(new Query($conn,$createUnmatchedVehicleTable_SQL));
 
-// Insert WMI/VDS combinations that don't already exist
+if ($verbose) echo "Adding missing WMI and VDS records.\n";
 oneShot(new Query($conn,"INSERT IGNORE INTO l_WMI (wmi_code) SELECT DISTINCT LEFT(vin,3) FROM t_sv"));
 oneShot(new Query($conn,"INSERT IGNORE INTO l_VDS (vds_code, wmi_id) SELECT DISTINCT SUBSTRING(vin,4,5), wmi_id FROM t_sv ".
                                 "INNER JOIN l_WMI ON LEFT(vin,3) = l_wmi.wmi_code"));
 
-//Populate the table we just created with VIN patterns consisting of all distinct WMI+VDS components matched with
-//all possible year digits (this lets us query for vehicles that we may not yet have sold for)
+if ($verbose) echo "Populating t_unmatched_vehicles with necessary data from t_sv and VIN component tables.\n";
 $populateUnmatchedVehicle_SQL = "INSERT INTO t_unmatched_vehicles (vin_pattern, vds_id, year_digit, expected_year) ".
     "SELECT CONCAT(first8,'_',digit,'%'), vds_id, digit, if(substring(first8,7,1) regexp '[0-9]', sequence, sequence + 30)".
     "FROM (SELECT DISTINCT LEFT(vin,8) as first8 FROM t_sv) AS partialVin ".
@@ -293,6 +306,7 @@ $populateUnmatchedVehicle_SQL = "INSERT INTO t_unmatched_vehicles (vin_pattern, 
 
 oneShot(new PreparedStatement($conn,$populateUnmatchedVehicle_SQL));
 
+if ($verbose) echo "Creating t_unmatched_software table if it doesn't already exist.\n";
 //Do the same thing for software; after this we are no longer dependent on t_sv to complete the job
 $createUnmatchedSoftwareTable_SQL = "CREATE TABLE IF NOT EXISTS t_unmatched_software (".
     "`vin_pattern` VARCHAR(17) NOT NULL, ".
@@ -301,6 +315,7 @@ $createUnmatchedSoftwareTable_SQL = "CREATE TABLE IF NOT EXISTS t_unmatched_soft
 
 oneShot(new Query($conn,$createUnmatchedSoftwareTable_SQL));
 
+if ($verbose) echo "Populating t_unmatched_vehicles with necessary data from t_sv.\n";
 $populateUnmatchedSoftware_SQL = "INSERT INTO t_unmatched_software (vin_pattern, software_id) ".
     "SELECT DISTINCT CONCAT(LEFT(vin,8),'_',SUBSTRING(vin,10,1)), software_id ".
     "FROM t_sv ".
@@ -312,6 +327,7 @@ resume_vpic:
 
 if (!isset($conn)) $conn = new Connection($server,$dbname,$mysql_user,$mysql_password);
 
+if ($verbose) echo "Batching unmatched VINs from t_unmatched_vehicles.\n";
 $unmatchedVins = oneShot(new Query($conn,"SELECT vin_pattern FROM t_unmatched_vehicles WHERE matched = FALSE"));
 $unmatchedVinCount = count($unmatchedVins);
 $batches = [];
@@ -329,6 +345,7 @@ for ($i=0; $i<$unmatchedVinCount; $i++){
 $updateCriteria = [];
 $batchCount = count($batches);
 $totalValid = 0;
+if ($verbose) echo "$batchCount batches created. Beginning vPIC API calls...\n";
 for ($i=0; $i<$batchCount; $i++){
 	//Concatenate to string
 	$batchStr = implode(";",array_column($batches[$i],"vin_pattern"));
@@ -367,7 +384,7 @@ for ($i=0; $i<$batchCount; $i++){
 		}
 	}
     $totalValid += $valid;
-	echo "Batch $i returned $valid valid vehicles.\n\n";
+    if ($verbose) echo "Batch $i returned $valid valid vehicles.\n\n";
 
     //Update the rows for this batch and clear the array for the next iteration
     $updateUnmatched->addCriteria($updateCriteria);
@@ -375,9 +392,9 @@ for ($i=0; $i<$batchCount; $i++){
     $updateCriteria = [];
 }
 
-echo "$totalValid valid VIN patterns found in $unmatchedVinCount requests.\n\n";
+if ($verbose) echo "$totalValid valid VIN patterns found in $unmatchedVinCount requests.\n\n";
 
-echo "*** vPIC server requests completed. Processing results... ***\n\n";
+if ($verbose) echo "*** vPIC server requests completed. Processing results... ***\n\n";
 
 //If the script dies during the vPIC calls and we just want to process what didn't make it, we can skip here with --resume-processing
 resume_processing:
@@ -386,7 +403,9 @@ if (!isset($conn)) $conn = new Connection($server,$dbname,$mysql_user,$mysql_pas
 
 
 //--------------------------------------------//
+if ($verbose) echo "Retrieving vPIC-matched vehicles from t_unmatched_vehicles.";
 $responseArray = oneShot(new Query($conn,"SELECT * FROM t_unmatched_vehicles WHERE matched = TRUE"));
+$responseCount = count($responseArray);
 
 $incrementAdjustment = new PreparedStatement($conn,"UPDATE l_VDS SET year_increment = :new_increment WHERE vds_id = :vds");
 $vdsAdjustments = [];
@@ -397,15 +416,15 @@ for ($i=0; $i<$responseCount; $i++){
 		$vdsAdjustments[$vds] = $adjustment;
 	}
 }
-echo "Adjusting year increments for ".count($vdsAdjustments)." vds_id's.\n\n";
+if ($verbose) echo "Adjusting year increments for ".count($vdsAdjustments)." vds_id's.\n\n";
 foreach ($vdsAdjustments as $vds => $adjustment){
 	$incrementAdjustment->addParameterSet(["new_increment"=>$adjustment,"vds"=>$vds]);
 }
-//$incrementAdjustment->execute();
+$incrementAdjustment();
 
 //--------------------------------------------//
 
-echo "Synchronizing l_makes...\n\n";
+if ($verbose) echo "Synchronizing l_makes...\n\n";
 
 //vPIC sends makes in all upper-case, so we need to convert them to title case to make them consistent with what we use.
 array_walk($responseArray,function(&$elem, $key){ $elem['make_name'] = ucwords(strtolower($elem['make_name'])); });
@@ -420,7 +439,7 @@ $makesModel = new Model(
 $insertMakes = array_values(array_diff($makes, array_column($makesModel->data(),"make_name")));
 $insertCount = count($insertMakes);
 if ($insertCount > 0){
-	echo "Inserting $insertCount new makes...\n\n";
+    if ($verbose) echo "Inserting $insertCount new makes...\n\n";
 	$insertRows = [];
 	for ($i=0; $i<$insertCount; $i++){
 		$insertRows[] = ["make"=>$insertMakes[$i]];
@@ -437,7 +456,7 @@ for ($i=0; $i<$responseCount; $i++){
 
 //--------------------------------------------//
 
-echo "Synchronizing l_models...\n\n";
+if ($verbose) echo "Synchronizing l_models...\n\n";
 
 $modelsModel = new Model(
 	new PreparedStatement($conn, "SELECT model_id, make_id, model_name FROM l_models"),
@@ -457,7 +476,7 @@ for ($i=0; $i<count($modelsModel); $i++){
 $insertModels = array_values(array_unique(array_diff($responseModels, $storedModels)));
 $insertCount = count($insertModels);
 if ($insertCount > 0){
-	echo "Inserting $insertCount new models...\n\n";
+    if ($verbose) echo "Inserting $insertCount new models...\n\n";
 	array_walk($insertModels,function(&$elem, $key){ $elem = json_decode($elem,true); });
 	$modelsModel->insert($insertModels);
 
@@ -475,7 +494,7 @@ for ($i=0; $i<$responseCount; $i++){
 }
 //--------------------------------------------//
 
-echo "Synchronizing l_engine_types...\n";
+if ($verbose) echo "Synchronizing l_engine_types...\n";
 
 $types = array_values(array_unique(array_filter(array_column($responseArray,"engine_type_name"))));
 
@@ -548,18 +567,18 @@ for ($i=0; $i<$responseCount; $i++){
 }
 $updateCount = count($updateArray);
 $insertCount = count($insertArray);
-echo "Identities to be updated: $updateCount\n";
-echo "Identities to be inserted: $insertCount\n\n";
+if ($verbose) echo "Identities to be updated: $updateCount\n";
+if ($verbose) echo "Identities to be inserted: $insertCount\n\n";
 if ($updateCount > 0){
-	echo "Updating $updateCount identities...\n";
+    if ($verbose) echo "Updating $updateCount identities...\n";
 	$identitiesModel->update($updateArray);
 }
 if ($insertCount > 0){
-	echo "Inserting $insertCount identities...\n";
+    if ($verbose) echo "Inserting $insertCount identities...\n";
 	$identitiesModel->insert($insertArray);
 }
 
-//Perform matching against new identities
+if ($verbose) echo "Matching new vehicle_ids to t_unmatched_vehicles.\n";
 oneShot(new PreparedStatement($conn,
     "WITH currentPatterns AS (SELECT vehicle_id, CONCAT(wmi_code,vds_code,'_',year_digit,'%') AS vin_pattern ".
                 "FROM l_WMI ".
@@ -569,7 +588,7 @@ oneShot(new PreparedStatement($conn,
         "INNER JOIN currentPatterns USING (vin_pattern) ".
         "SET t_unmatched_vehicles.vehicle_id = currentPatterns.vehicle_id"));
 
-//Match software to new vehicle_ids
+if ($verbose) echo "Adding new records in vehicle_software_map for vPIC-matched vehicles and software.\n";
 oneShot(new Query($conn,
     "INSERT INTO vehicle_software_map (vehicle_id, software_id) ".
         "SELECT vehicle_id, software_id ".
@@ -577,6 +596,7 @@ oneShot(new Query($conn,
         "INNER JOIN t_unmatched_software USING (vin_pattern)"
 ));
 
+if ($verbose) echo "All matching complete. Removing matched records from t_unmatched_vehicles and t_unmatched_software.\n";
 //Finally, delete all matched rows from the t_ tables (and delete the tables entirely if all rows are matched)
 oneShot(new Query($conn,
    "DELETE t_unmatched_software FROM t_unmatched_software ".
@@ -588,3 +608,4 @@ oneShot(new Query($conn,
     "DELETE FROM t_unmatched_vehicles WHERE matched = TRUE"
 ));
 
+die("Complete.\n\n");
