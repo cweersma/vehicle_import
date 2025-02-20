@@ -271,7 +271,9 @@ if ($verbose) echo "Updating vehicle_software_map with matches on existing data.
 $insertVSM_SQL = "INSERT INTO vehicle_software_map (vehicle_id, software_id) ".
                     "SELECT t_sv.vehicle_id, t_sv.software_id FROM t_sv ".
                     "LEFT JOIN vehicle_software_map ON vehicle_software_map.vehicle_id = t_sv.vehicle_id AND vehicle_software_map.software_id = t_sv.software_id ".
-                    "WHERE vehicle_software_map.vehicle_id IS NULL AND vehicle_software_map.software_id IS NULL";
+                    "WHERE ".
+                    "t_sv.vehicle_id IS NOT NULL AND t_sv.software_id IS NOT NULL AND ".
+                    "vehicle_software_map.vehicle_id IS NULL AND vehicle_software_map.software_id IS NULL";
 
 $insertVSM = new Query($conn, $insertVSM_SQL);
 
