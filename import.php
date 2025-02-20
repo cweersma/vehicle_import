@@ -384,7 +384,7 @@ for ($i=0; $i<$batchCount; $i++){
 	}
 	$valid = 0;
 	$responseObj = json_decode($response);
-    $updateUnmatched = new StatementSet($conn,"UPDATE IGNORE t_unmatched_vehicles SET <<values>> WHERE <<condition>>",Query::QUERY_UPDATE);
+    $updateUnmatched = new StatementSet($conn,"UPDATE t_unmatched_vehicles SET <<values>> WHERE <<condition>>",Query::QUERY_UPDATE);
 	for ($j=0; $j<count($batches[$i]); $j++){
 		$vinResponse = $responseObj->Results[$j];
 		if ($vinResponse->Model){
