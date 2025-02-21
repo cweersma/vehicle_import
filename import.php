@@ -56,7 +56,7 @@ function parseCSV(string $path, int $columnCount) : array {
 }
 
 /* Define initial variables */
-$hs = $sv = null;
+$csvPaths = [];
 $info_type = null;
 $resume_type = null;
 $hsPointer = null;
@@ -75,7 +75,7 @@ for ($i=0; $i < count($arguments); $i++) {
             //The values for each flag are file paths to be assigned to variables having the name of that flag.
             //e.g. --hs /path/to/file  -->  $hs = "/path/to/file"
             $flag = substr($arguments[$i], 2);
-            $$flag = $arguments[$i+1];
+            $csvPaths[$flag] = $arguments[$i+1];
             $i++;
             break;
         case '--use-vin':
@@ -112,11 +112,11 @@ switch ($resume_type){
         goto resume_processing;
 }
 
-if (!$hs && !$sv) {
+if (count($csvPaths) === 0) {
     echo "At least one CSV file must be specified for import.\n\n";
     printUsage();
 }
-if ($sv && !$info_type){
+if (isset($csvPaths['sv']) && !$info_type){
     echo "Either --use-vin or --use-spec is required if a software/vehicle CSV file is specified.\n\n";
     printUsage();
 }
@@ -125,9 +125,9 @@ if ($sv && !$info_type){
 $conn = new Connection($server,$dbname,$mysql_user,$mysql_password);
 
 //Insert all hardware/software numbers
-if ($hs){
+if (isset($csvPaths['hs'])){
     //Get the CSV data
-    $hsContents = parseCSV($hs, 2);
+    $hsContents = parseCSV($csvPaths['hs'], 2);
 
     //First dump the CSV dataset into a temporary table
     oneShot(new Query($conn, "CREATE TEMPORARY TABLE t_hs (`inventory_no` VARCHAR(255) NOT NULL,`mfr_software_no` VARCHAR(255) NOT NULL)"));
@@ -153,7 +153,7 @@ if ($hs){
     $hsTransaction->commit();
 }
 
-if (!$sv) {
+if (!isset($csvPaths['sv'])) {
     die("Complete.\n\n");
 }
 
@@ -163,7 +163,7 @@ $colCount = match ($info_type){
     '--use-vin' => 2,
     '--use-spec' => 8
 };
-$svContents = parseCSV($sv,$colCount);
+$svContents = parseCSV($csvPaths['sv'],$colCount);
 
 $svTableSQL = "CREATE TABLE IF NOT EXISTS t_sv (`mfr_software_no` VARCHAR(255) NOT NULL, ";
 $svInsertSQL = "INSERT IGNORE INTO t_sv (mfr_software_no, ";
