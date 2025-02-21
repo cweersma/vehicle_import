@@ -35,7 +35,7 @@ The git, php8, and php-composer packages must all be installed.
    ```
 ---  
 
-   Depending on which information needs to be imported, either or both of 4 and 5 can be done, but at least one is required. The CSV files created must
+   Depending on which information needs to be imported, any combination of 4, 5, and/or 6 can be done, but at least one is required. The CSV files created must
    have a header row; the column names in this header row do not matter (the order of the columns will be followed irrespective of heading), but the import will
    always start from row 2.
 
@@ -82,19 +82,58 @@ The git, php8, and php-composer packages must all be installed.
    | 321987   | Chevrolet | S-10 Pickup | 1998 | 2.2          | gasoline    |      | 1/2 Ton Nominal |
    | 456789   | Acura     | Integra     | 1989 | 1.6          |             | LS   |                 |
 
-**6. Upload these files to the server and note their location.**
+**6. Create software/Hollander and/or hardware/Hollander CSVs.**
+
+If either or both of these are provided, they must have two columns. The first column should be the hardware or software
+number, and the second should be the Hollander number to be matched with that number. Duplicate values are allowed in
+either column, but every row must have both a hardware/software number and a Hollander number.
+
+| software/hardware | Hollander |
+|-------------------|-----------|
+| 987654            | 590-00001 |
+| 987654            | 590-00002 |
+| 123456            | 590-00002 |
+
+The first column must have only values of the same type (software or hardware, not a mix of the two). As with the
+software/vehicle CSV in step 5, these must already exist in the database or be included with the hardware/software CSV in
+step 4, or these will be ignored by the matching.
+
+**7. Upload these files to the server and note their location.**
 
 ## Execution
 
-import.php is run from the command line, and takes one or both of the --hs and --sv flags; if the --sv flag is used,
-exactly one of either --use-vin or --use-spec is also required. The --hs flag specifies the location of the hardware/software CSV from step 3; --sv
-specifies the location the software/vehicle CSV from step 4. --use-vin indicates that VINs are provided in the software/vehicle CSV,
-while --use-spec indicates that specifications are provided instead. It does not matter which order these flags are specified.
+import.php is run from the command line. The flags to be used are as follows:
 
-This script runs silently by default unless an error occurs. To see status messages, include the --verbose flag.
+CSV file flags:
+
+| flag | description                      |
+|------|----------------------------------|
+| --hs | Hardware/software (from step 4)  |
+| --sv | Software/vehicle (from step 5)   |
+| --hh | Hardware/Hollander (from step 6) |
+| --sh | Software/Hollander (from step 6) |
+
+Any of the above may be omitted, but the script requires at least one of them. The values for each of these
+flags must be the path to the file in question. If --sv is used, either --use-vin or --use-spec is also
+required so that the script knows what type of vehicle information is in this file.
+
+Option flags:
+
+| flag        | description                                          |
+|-------------|------------------------------------------------------|
+| --use-vin   | The --sv file contains VINs.                         |
+| --use-spec  | The --sv file contains vehicle specs.                |
+| --verbose   | The script will output step-by-step status messages. |
+
+
+Example usage:
 
 ```console
- ./import.php --hs /path/to/hardware_software.csv --sv /path/to/software_vehicle.csv --use-vin --verbose
+ ./import.php --hs /path/to/hardware_software.csv \
+     --sv /path/to/software_vehicle.csv \
+     --hh /path/to/hardware_hollander.csv \
+     --sh /path/to/software_hollander.csv \
+     --use-vin --verbose
 ```
 
    
