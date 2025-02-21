@@ -476,7 +476,7 @@ $engineTypeInsert = new PreparedStatement($conn, $engineTypeInsertSQL);
 // engine_type_id defaults to 1 (gasoline). 2 is diesel.
 if ($verbose) echo "Inserting vehicle identities.\n";
 
-$identitiesDataSQL = "INSERT INTO vehicle_identities (vds_id, model_id, vehicle_trim, vehicle_series, engine_displacement, year_digit, engine_type_id) ".
+$identitiesDataSQL = "INSERT IGNORE INTO vehicle_identities (vds_id, model_id, vehicle_trim, vehicle_series, engine_displacement, year_digit, engine_type_id) ".
     "SELECT vds_id, model_id, vehicle_trim, vehicle_series, engine_displacement, year_digit, engine_type_id ".
     "FROM t_unmatched_vehicles ".
     "INNER JOIN l_makes USING (make_name) ".
