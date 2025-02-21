@@ -500,7 +500,7 @@ oneShot(new PreparedStatement($conn,
 
 if ($verbose) echo "Adding new records in vehicle_software_map for vPIC-matched vehicles and software.\n";
 oneShot(new Query($conn,
-    "INSERT INTO vehicle_software_map (vehicle_id, software_id) ".
+    "INSERT IGNORE INTO vehicle_software_map (vehicle_id, software_id) ".
         "SELECT vehicle_id, software_id ".
         "FROM t_unmatched_vehicles ".
         "INNER JOIN t_unmatched_software USING (vin_pattern)"
