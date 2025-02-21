@@ -441,6 +441,7 @@ oneShot(new Query($conn, "UPDATE l_VDS INNER JOIN t_unmatched_vehicles USING (vd
 if ($verbose) echo "Synchronizing l_makes...\n\n";
 
 $makeInsert = new PreparedStatement($conn, "INSERT IGNORE INTO l_makes (make_name) VALUES (:make_name)");
+
 //vPIC sends makes in all upper-case, so we need to convert them to title case to make them consistent with what we use.
 array_walk($responseArray,function(&$elem, $key){ if ($elem['make_name']) $elem['make_name'] = ucwords(strtolower($elem['make_name'])); });
 
@@ -449,138 +450,42 @@ foreach ($unmatchedMakes as $make){
     if ($make) $makeInsert->addParameterSet(["make_name"=>$make]);
 }
 $makeInsert();
-$currentMakes = oneShot(new PreparedStatement($conn, "SELECT make_id, make_name FROM l_makes"));
-$currentMakeArray = [];
-foreach ($currentMakes as $makeRow){
-    $currentMakeArray[$makeRow['make_name']] = $makeRow['make_id'];
-}
-for ($i=0; $i<$responseCount; $i++){
-    if ($responseArray[$i]["make_name"]) $responseArray[$i]["make_id"] = $currentMakeArray[$responseArray[$i]["make_name"]];
-}
 
 //--------------------------------------------//
 
 if ($verbose) echo "Synchronizing l_models...\n\n";
 
-$modelsModel = new Model(
-	new PreparedStatement($conn, "SELECT model_id, make_id, model_name FROM l_models"),
-	null,
-	new PreparedStatement($conn, "INSERT IGNORE INTO l_models (make_id, model_name) VALUES (:make_id, :model_name)")
-);
-//Here we need to compare unique combinations of make_id + model_name, so we need to make a combination array for each side
-$responseModels = [];
-$storedModels = [];
-for ($i=0; $i<$responseCount; $i++){
-	if ($responseArray[$i]["model_name"]) $responseModels[] = json_encode(["make_id" => $responseArray[$i]["make_id"], "model_name" => $responseArray[$i]["model_name"]]);
-}
-for ($i=0; $i<count($modelsModel); $i++){
-	$storedModels[$modelsModel[$i]["model_id"]] = json_encode(["make_id" => $modelsModel[$i]["make_id"], "model_name" => $modelsModel[$i]["model_name"]]);
-}
+$modelInsertSQL = "INSERT INTO l_models (make_id, model_name) SELECT DISTINCT make_id, model_name FROM t_unmatched_vehicles ".
+    "INNER JOIN l_makes USING (make_name) ".
+    "LEFT JOIN l_models USING (make_id, model_name) WHERE l_models.model_id IS NULL";
+$modelInsert = new PreparedStatement($conn, $modelInsertSQL);
 
-$insertModels = array_values(array_unique(array_diff($responseModels, $storedModels)));
-$insertCount = count($insertModels);
-if ($insertCount > 0){
-    if ($verbose) echo "Inserting $insertCount new models...\n\n";
-	array_walk($insertModels,function(&$elem, $key){ $elem = json_decode($elem,true); });
-	$modelsModel->insert($insertModels);
-
-	//Refresh $storedModels to get the new model_ids after insert
-	$storedModels = [];
-	for ($i=0; $i<count($modelsModel); $i++){
-		$storedModels[$modelsModel[$i]["model_id"]] = json_encode(["make_id" => $modelsModel[$i]["make_id"], "model_name" => $modelsModel[$i]["model_name"]]);
-	}
-}
-//Attach model_ids to $responseArray depending on make_id and model_name (use the JSON-encoded combination as a key)
-$storedModels = array_flip($storedModels);
-for ($i=0; $i<$responseCount; $i++){
-	$responseArray[$i]["model_id"] = $storedModels[json_encode(["make_id"=> $responseArray[$i]["make_id"], "model_name" => $responseArray[$i]["model_name"]])];
-	$responseArray[$i]["UN_vds_year"] = $responseArray[$i]["vds_id"]."-".$responseArray[$i]["year_digit"];
-}
 //--------------------------------------------//
 
 if ($verbose) echo "Synchronizing l_engine_types...\n";
 
 $types = array_values(array_unique(array_filter(array_column($responseArray,"engine_type_name"))));
 
-$engineTypeModel = new Model(
-	new PreparedStatement($conn, "SELECT engine_type_id, engine_type_name FROM l_engine_types"),
-	null,
-	new PreparedStatement($conn, "INSERT INTO l_engine_types (engine_type_name) VALUES (:engine_type_name)")
-);
-
-$insertTypes = array_values(array_unique(array_diff($types, array_column($engineTypeModel->data(),"engine_type_name"))));
-$insertCount = count($insertTypes);
-if ($insertCount > 0){
-        echo "Inserting $insertCount new engine types...\n\n";
-        $insertRows = [];
-        for ($i=0; $i<$insertCount; $i++){
-               	if (!!$insertTypes[$i]) $insertRows[] = ["engine_type_name"=>$insertTypes[$i]];
-        }
-        $engineTypeModel->insert($insertRows);
-}
-$typesArray = [];
-for ($i=0; $i<count($engineTypeModel); $i++){
-        $typesArray[$engineTypeModel[$i]["engine_type_name"]] = $engineTypeModel[$i]["engine_type_id"];
-}
-for ($i=0; $i<$responseCount; $i++){
-       	$responseArray[$i]["engine_type_id"] = $responseArray[$i]["engine_type_name"] ? $typesArray[$responseArray[$i]["engine_type_name"]] : null;
-}
-
+$engineTypeInsertSQL = "INSERT INTO l_engine_types (engine_type_name) SELECT DISTINCT engine_type_name FROM t_unmatched_vehicles".
+    "INNER JOIN l_engine_types USING (engine_type_name) ".
+    "WHERE l_engine_types.engine_type_id IS NULL";
+$engineTypeInsert = new PreparedStatement($conn, $engineTypeInsertSQL);
 
 //--------------------------------------------//
 // Insert into vehicle_identities. vds_id and year_digit are paired as a unique key. model_id is required. vehicle_trim, vehicle_series, engine_displacement, and engine_type_id are optional.
 // engine_type_id defaults to 1 (gasoline). 2 is diesel.
+if ($verbose) echo "Inserting vehicle identities.\n";
 
-// Find what needs to be inserted and what needs to be updated
-$identitiesModel = $modelsModel = new Model(
-        new PreparedStatement($conn, "SELECT vehicle_id, vds_id, model_id, vehicle_trim, vehicle_series, engine_displacement, year_digit, engine_type_id, CONCAT(vds_id,'-',year_digit) AS UN_vds_year FROM vehicle_identities"),
-        new StatementSet($conn, "UPDATE vehicle_identities SET <<values>> WHERE <<condition>>"),
-        new StatementSet($conn, "INSERT INTO vehicle_identities <<columns>> <<values>>")
-);
-$insertArray = [];
-$updateArray = [];
+$identitiesDataSQL = "INSERT INTO vehicle_identities (vds_id, model_id, vehicle_trim, vehicle_series, engine_displacement, year_digit, engine_type_id) ".
+    "SELECT vds_id, model_id, vehicle_trim, vehicle_series, engine_displacement, year_digit, engine_type_id ".
+    "FROM t_unmatched_vehicles ".
+    "INNER JOIN l_makes USING (make_name) ".
+    "INNER JOIN l_models USING (make_id, model_name) ".
+    "LEFT JOIN l_engine_types USING (engine_type_name) ";
 
-//Flip this so we can use the faster isset()
-$response_vds_year = array_flip(array_column($identitiesModel->data(),"UN_vds_year"));
-for ($i=0; $i<$responseCount; $i++){
-	//Clear keys that are no longer needed
-	$deleteKeys = ['vin_pattern','make_name','make_id','model_name','expected_year','model_year','engine_type_name'];
-	foreach ($deleteKeys as $key){
-		unset ($responseArray[$i][$key]);
-	}
+oneShot(new PreparedStatement($conn, $identitiesDataSQL));
 
-	if (isset($response_vds_year[$responseArray[$i]["UN_vds_year"]])){
-		//Update
-		foreach ($responseArray[$i] as $key => $value){
-			if (!$value) $responseArray[$i][$key] = null;
-		}
-		$where = ['vds_id' => ['=',$responseArray[$i]['vds_id']], 'year_digit' => ['=',$responseArray[$i]['year_digit']]];
-		unset ($responseArray[$i]['vds_id']);
-		unset ($responseArray[$i]['year_digit']);
-		unset ($responseArray[$i]['UN_vds_year']);
-		$updateArray[] = ["values" => [$responseArray[$i]],"where" => $where];
-	}
-	else {
-		//Insert
-		foreach ($responseArray[$i] as $key => $value){
-			if (!$value) unset ($responseArray[$i][$key]);
-		}
-		unset ($responseArray[$i]['UN_vds_year']);
-		$insertArray[] = ["values"=>$responseArray[$i]];
-	}
-}
-$updateCount = count($updateArray);
-$insertCount = count($insertArray);
-if ($verbose) echo "Identities to be updated: $updateCount\n";
-if ($verbose) echo "Identities to be inserted: $insertCount\n\n";
-if ($updateCount > 0){
-    if ($verbose) echo "Updating $updateCount identities...\n";
-	$identitiesModel->update($updateArray);
-}
-if ($insertCount > 0){
-    if ($verbose) echo "Inserting $insertCount identities...\n";
-	$identitiesModel->insert($insertArray);
-}
+// After vehicle identities are created //
 
 if ($verbose) echo "Matching new vehicle_ids to t_unmatched_vehicles.\n";
 oneShot(new PreparedStatement($conn,
