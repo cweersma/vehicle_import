@@ -350,8 +350,8 @@ $createUnmatchedVehicleTable_SQL = "CREATE TABLE IF NOT EXISTS t_unmatched_vehic
     "UNIQUE (vin_pattern)".
     ")";
 
-
 oneShot(new Query($conn,$createUnmatchedVehicleTable_SQL));
+oneShot(new Query($conn, "TRUNCATE TABLE t_unmatched_vehicles"));
 
 if ($verbose) echo "Adding missing WMI and VDS records.\n";
 oneShot(new Query($conn,"INSERT IGNORE INTO l_WMI (wmi_code) SELECT DISTINCT LEFT(vin,3) FROM t_sv"));
