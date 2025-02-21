@@ -7,7 +7,6 @@ include_once "vendor/autoload.php";
 include_once "inc/connection.php";
 
 use KitsuneTech\Velox\Database\Connection;
-use KitsuneTech\Velox\Structures\Model;
 use KitsuneTech\Velox\Database\Procedures\{Query, PreparedStatement, StatementSet, Transaction};
 use function KitsuneTech\Velox\Database\oneShot;
 
@@ -17,7 +16,7 @@ use function KitsuneTech\Velox\Database\oneShot;
  * @return void
  */
 function printUsage(): void {
-    echo "Usage: ./import.php [resume type flag] --hs <hardware/software CSV> --sv <software/vehicle CSV> <vehicle info flag>\n";
+    echo "Usage: ./import.php [resume type flag] --hs <hardware/software CSV> --sv <software/vehicle CSV> --hh <hardware/Hollander CSV> --sh <software/Hollander CSV> <vehicle info flag>\n";
     echo "\n";
     echo "Vehicle info flags:\n";
     echo "    --use-vin     The software/vehicle CSV contains VINs.\n";
@@ -72,6 +71,8 @@ for ($i=0; $i < count($arguments); $i++) {
     switch ($arguments[$i]) {
         case '--hs':
         case '--sv':
+        case '--hh':
+        case '--sh':
             //The values for each flag are file paths to be assigned to variables having the name of that flag.
             //e.g. --hs /path/to/file  -->  $hs = "/path/to/file"
             $flag = substr($arguments[$i], 2);
@@ -132,7 +133,7 @@ if (isset($csvPaths['hs'])){
     //First dump the CSV dataset into a temporary table
     oneShot(new Query($conn, "CREATE TEMPORARY TABLE t_hs (`inventory_no` VARCHAR(255) NOT NULL,`mfr_software_no` VARCHAR(255) NOT NULL)"));
 
-    //INSERT IGNORE here, along with the NOT NULL and CHECK constraints, sanitize the data for rows missing data; this is thrown out in the process of the INSERT
+    //INSERT IGNORE here, along with the NOT NULL constraints, sanitize the data for rows missing data; this is thrown out in the process of the INSERT
     $hsInsert = new PreparedStatement($conn, "INSERT IGNORE INTO t_hs (inventory_no, mfr_software_no) VALUES(:0,:1)");
     for ($i = 0; $i < count($hsContents); $i++){
         if (in_array('',$hsContents[$i])) continue;     //Skip any lines that have empty strings for either value
@@ -151,6 +152,50 @@ if (isset($csvPaths['hs'])){
         $query();
     }
     $hsTransaction->commit();
+}
+
+//Insert software/Hollander matches (if provided)
+if (isset($csvPaths['sh'])){
+    if ($verbose) echo "Parsing software/Hollander CSV.\n";
+    $shContents = parseCSV($csvPaths['sh'], 2);
+    if ($verbose) echo "Creating software/Hollander temp table.\n";
+    oneShot(new Query($conn, "CREATE TEMPORARY TABLE t_sh (`mfr_software_no` VARCHAR(255) NOT NULL,`hollander_no` VARCHAR(255) NOT NULL)"));
+    if ($verbose) echo "Inserting CSV data into software/Hollander temp table.\n";
+    $shInsert = new PreparedStatement($conn, "INSERT IGNORE INTO t_sh (mfr_software_no, hollander_no) VALUES(:0,:1)");
+    for ($i = 0; $i < count($shContents); $i++){
+        if (in_array('',$shContents[$i])) continue;     //Skip any lines that have empty strings for either value
+        $shInsert->addParameterSet($shContents[$i]);
+    }
+    $shInsert();
+    if ($verbose) echo "Inserting any new Hollander numbers into hollander table.\n";
+    oneShot(new Query($conn,"INSERT IGNORE INTO hollander (hollander_no) SELECT DISTINCT hollander_no FROM t_sh"));
+    if ($verbose) echo "Adding Hollander/software matches to hollander_software_map table.\n";
+    oneShot(new Query($conn,"INSERT IGNORE INTO hollander_software_map (software_id, hollander_id) ".
+                                    "SELECT software_id, hollander_id FROM t_sh ".
+                                    "INNER JOIN software USING (mfr_software_no)".
+                                    "INNER JOIN hollander USING (hollander_no)"));
+}
+
+//Insert hardware/Hollander matches (if provided)
+if (isset($csvPaths['hh'])){
+    if ($verbose) echo "Parsing hardware/Hollander CSV.\n";
+    $hhContents = parseCSV($csvPaths['hh'], 2);
+    if ($verbose) echo "Creating hardware/Hollander temp table.\n";
+    oneShot(new Query($conn, "CREATE TEMPORARY TABLE t_hh (`inventory_no` VARCHAR(255) NOT NULL,`hollander_no` VARCHAR(255) NOT NULL)"));
+    if ($verbose) echo "Inserting CSV data into hardware/Hollander temp table.\n";
+    $hhInsert = new PreparedStatement($conn, "INSERT IGNORE INTO t_hh (inventory_no, hollander_no) VALUES(:0,:1)");
+    for ($i = 0; $i < count($hhContents); $i++){
+        if (in_array('',$hhContents[$i])) continue;     //Skip any lines that have empty strings for either value
+        $hhInsert->addParameterSet($hhContents[$i]);
+    }
+    $hhInsert();
+    if ($verbose) echo "Inserting any new Hollander numbers into hollander table.\n";
+    oneShot(new Query($conn,"INSERT IGNORE INTO hollander (hollander_no) SELECT DISTINCT hollander_no FROM t_sh"));
+    if ($verbose) echo "Adding Hollander/software matches to hollander_inventory_map table.\n";
+    oneShot(new Query($conn,"INSERT IGNORE INTO hollander_inventory_map (inventory_id, hollander_id) ".
+                                    "SELECT inventory_id, hollander_id FROM t_sh ".
+                                    "INNER JOIN inventory USING (inventory_no)".
+                                    "INNER JOIN hollander USING (hollander_no)"));
 }
 
 if (!isset($csvPaths['sv'])) {
