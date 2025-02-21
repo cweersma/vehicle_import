@@ -384,6 +384,7 @@ $populateUnmatchedSoftware_SQL = "INSERT INTO t_unmatched_software (vin_pattern,
     "WHERE software_id IS NOT NULL";
 
 oneShot(new Query($conn,$populateUnmatchedSoftware_SQL));
+oneShot(new Query($conn, "TRUNCATE TABLE t_unmatched_software"));
 
 //If the script dies during the vPIC calls, we can restart the process here with the --resume-vpic flag
 resume_vpic:
