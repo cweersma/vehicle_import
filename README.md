@@ -98,6 +98,9 @@ The first column must have only values of the same type (software or hardware, n
 software/vehicle CSV in step 5, these must already exist in the database or be included with the hardware/software CSV in
 step 4, or these will be ignored by the matching.
 
+*Note: the NIS database was not originally built with an inventory_hollander_map table. To be able to do hardware/Hollander
+imports, this table must first be created if it doesn't exist. The query to create this table can be found in [this gist](https://gist.github.com/cweersma/4504d7dd8138760b9e0d28164e4c185c).
+
 **7. Upload these files to the server and note their location.**
 
 ## Execution
