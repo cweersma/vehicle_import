@@ -494,7 +494,7 @@ oneShot(new PreparedStatement($conn,
             "SELECT vehicle_id, CONCAT(wmi_code,vds_code,'_',year_digit,'%') AS vin_pattern ".
             "FROM l_WMI ".
             "INNER JOIN l_VDS USING (wmi_id) ".
-            "INNER JOIN vehicle_identities USING (vehicle_id)".
+            "INNER JOIN vehicle_identities USING (vds_id)".
         ") AS currentPatterns USING (vin_pattern) ".
         "SET t_unmatched_vehicles.vehicle_id = currentPatterns.vehicle_id"));
 
