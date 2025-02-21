@@ -127,6 +127,7 @@ $conn = new Connection($server,$dbname,$mysql_user,$mysql_password);
 
 //Insert all hardware/software numbers
 if (isset($csvPaths['hs'])){
+    if ($verbose) echo "Inserting hardware/software into t_hs.\n";
     //Get the CSV data
     $hsContents = parseCSV($csvPaths['hs'], 2);
 
