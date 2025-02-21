@@ -46,11 +46,11 @@ array_shift($arguments);
 for ($i=0; $i < count($arguments); $i++) {
     switch ($arguments[$i]) {
         case '--hs':
-            $hs = $arguments[$i+1];
-            $i++;
-            break;
         case '--sv':
-            $sv = $arguments[$i+1];
+            //The values for each flag are file paths to be assigned to variables having the name of that flag.
+            //e.g. --hs /path/to/file  -->  $hs = "/path/to/file"
+            $flag = substr($arguments[$i], 2);
+            $$flag = $arguments[$i+1];
             $i++;
             break;
         case '--use-vin':
