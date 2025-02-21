@@ -489,12 +489,13 @@ oneShot(new PreparedStatement($conn, $identitiesDataSQL));
 
 if ($verbose) echo "Matching new vehicle_ids to t_unmatched_vehicles.\n";
 oneShot(new PreparedStatement($conn,
-    "WITH currentPatterns AS (SELECT vehicle_id, CONCAT(wmi_code,vds_code,'_',year_digit,'%') AS vin_pattern ".
-                "FROM l_WMI ".
-                "INNER JOIN l_VDS USING (wmi_id) ".
-                "INNER JOIN vehicle_identities USING (vehicle_id) )".
         "UPDATE t_unmatched_vehicles ".
-        "INNER JOIN currentPatterns USING (vin_pattern) ".
+        "INNER JOIN (".
+            "SELECT vehicle_id, CONCAT(wmi_code,vds_code,'_',year_digit,'%') AS vin_pattern ".
+            "FROM l_WMI ".
+            "INNER JOIN l_VDS USING (wmi_id) ".
+            "INNER JOIN vehicle_identities USING (vehicle_id)".
+        ") AS currentPatterns USING (vin_pattern) ".
         "SET t_unmatched_vehicles.vehicle_id = currentPatterns.vehicle_id"));
 
 if ($verbose) echo "Adding new records in vehicle_software_map for vPIC-matched vehicles and software.\n";
