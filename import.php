@@ -192,7 +192,7 @@ if (isset($csvPaths['hh'])){
     if ($verbose) echo "Inserting any new Hollander numbers into hollander table.\n";
     oneShot(new Query($conn,"INSERT IGNORE INTO hollander (hollander_no) SELECT DISTINCT hollander_no FROM t_sh"));
     if ($verbose) echo "Adding Hollander/software matches to hollander_inventory_map table.\n";
-    oneShot(new Query($conn,"INSERT IGNORE INTO hollander_inventory_map (inventory_id, hollander_id) ".
+    oneShot(new Query($conn,"INSERT IGNORE INTO inventory_hollander_map (inventory_id, hollander_id) ".
                                     "SELECT inventory_id, hollander_id FROM t_sh ".
                                     "INNER JOIN inventory USING (inventory_no)".
                                     "INNER JOIN hollander USING (hollander_no)"));
