@@ -29,9 +29,34 @@ function printUsage(): void {
     echo "\n";
     die ("See README.md for more detailed information.\n\n");
 }
+
+/**
+ * Parses the CSV file at $path into a two-dimensional array, taking the first $columnCount columns.
+ *
+ * *Note: this CSV is assumed to have headings in the first row, which is ignored; the results start at row 2 of the CSV.*
+ *
+ * @param string $path The path of the CSV file to be parsed
+ * @param int $columnCount The number of columns to be retrieved
+ * @return array The results as a two-dimensional array
+ */
+function parseCSV(string $path, int $columnCount) : array {
+    $contents = [];
+    if (!file_exists($path)){
+        die("Error: $path does not exist.");
+    }
+    if (!$pointer = fopen($path, "r")) {
+        die("Error: $path could not be opened. Possibly a permission issue?\n\n");
+    }
+    while ($line = fgetcsv($pointer)){
+        $contents[] = array_slice($line,0,$columnCount);
+    }
+    array_shift($contents);
+    fclose($pointer);
+    return $contents;
+}
+
 /* Define initial variables */
-$hs = null;
-$sv = null;
+$hs = $sv = null;
 $info_type = null;
 $resume_type = null;
 $hsPointer = null;
@@ -95,50 +120,16 @@ if ($sv && !$info_type){
     echo "Either --use-vin or --use-spec is required if a software/vehicle CSV file is specified.\n\n";
     printUsage();
 }
-if ($hs && !file_exists($hs)) {
-    die("Error: file $hs does not exist.\n\n");
-}
-if ($sv && !file_exists($sv)) {
-    die("Error: file $sv does not exist.\n\n");
-}
-
-//$hsPointer and/or $svPointer are implicitly set here
-if ($hs && !$hsPointer = fopen($hs, 'r')) {
-    die("Error: hardware/software CSV $hs could not be opened. Possibly a permission issue?\n\n");
-}
-if ($sv && !$svPointer = fopen($sv, 'r')) {
-    die("Error: software/vehicle CSV $sv could not be opened. Possibly a permission issue?\n\n");
-}
-
-// Parse the CSV file(s) provided
-if ($hsPointer){
-    while ($line = fgetcsv($hsPointer)){
-        $hsContents[] = array_slice($line,0,2);
-    }
-    array_shift($hsContents);
-    fclose($hsPointer);
-}
-if ($svPointer){
-    while ($line = fgetcsv($svPointer)){
-        switch ($info_type) {
-            case '--use-vin':
-                $svContents[] = array_slice($line,0,2);
-                break;
-            case '--use-spec':
-                $svContents[] = array_slice($line,0,8);
-                break;
-        }
-    }
-    array_shift($svContents);
-    fclose($svPointer);
-}
 
 //Initialize the database connection
 $conn = new Connection($server,$dbname,$mysql_user,$mysql_password);
 
 //Insert all hardware/software numbers
 if ($hs){
-    //First dump the entire dataset into a temporary table
+    //Get the CSV data
+    $hsContents = parseCSV($hs, 2);
+
+    //First dump the CSV dataset into a temporary table
     oneShot(new Query($conn, "CREATE TEMPORARY TABLE t_hs (`inventory_no` VARCHAR(255) NOT NULL,`mfr_software_no` VARCHAR(255) NOT NULL)"));
 
     //INSERT IGNORE here, along with the NOT NULL and CHECK constraints, sanitize the data for rows missing data; this is thrown out in the process of the INSERT
@@ -168,6 +159,12 @@ if (!$sv) {
 
 // ----- Everything from here on pertains only to vehicle/software matches. ----- //
 
+$colCount = match ($info_type){
+    '--use-vin' => 2,
+    '--use-spec' => 8
+};
+$svContents = parseCSV($sv,$colCount);
+
 $svTableSQL = "CREATE TABLE IF NOT EXISTS t_sv (`mfr_software_no` VARCHAR(255) NOT NULL, ";
 $svInsertSQL = "INSERT IGNORE INTO t_sv (mfr_software_no, ";
 switch ($info_type) {
@@ -185,7 +182,6 @@ switch ($info_type) {
         $svTableSQL .= "`vehicle_trim` VARCHAR(100), ";
         $svTableSQL .= "`vehicle_series` VARCHAR(100), ";
         $svInsertSQL .= "make_name, model_name, model_year, engine_displacement, engine_type, vehicle_trim, vehicle_series)";
-        // The CHECK constraint we used in t_hs would be too cumbersome here with eight columns, so we'll sanitize our empty strings a little differently here.
         $colCount = 8;
         break;
     default:
