@@ -359,7 +359,7 @@ oneShot(new Query($conn,"INSERT IGNORE INTO l_VDS (vds_code, wmi_id) SELECT DIST
                                 "INNER JOIN l_WMI ON LEFT(vin,3) = l_WMI.wmi_code"));
 
 if ($verbose) echo "Populating t_unmatched_vehicles with necessary data from t_sv and VIN component tables.\n";
-$populateUnmatchedVehicle_SQL = "INSERT INTO t_unmatched_vehicles (vin_pattern, vds_id, year_digit, expected_year) ".
+$populateUnmatchedVehicle_SQL = "INSERT IGNORE INTO t_unmatched_vehicles (vin_pattern, vds_id, year_digit, expected_year) ".
     "SELECT CONCAT(first8,'_',digit,'%'), vds_id, digit, if(substring(first8,7,1) regexp '[0-9]', sequence, sequence + 30)".
     "FROM (SELECT DISTINCT LEFT(vin,8) as first8 FROM t_sv) AS partialVin ".
     "LEFT JOIN l_WMI ON l_WMI.wmi_code = LEFT(first8,3) ".
