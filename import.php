@@ -510,8 +510,10 @@ if ($verbose) echo "Synchronizing l_engine_types...\n";
 $types = array_values(array_unique(array_filter(array_column($responseArray,"engine_type_name"))));
 
 $engineTypeInsertSQL = "INSERT INTO l_engine_types (engine_type_name) SELECT DISTINCT engine_type_name FROM t_unmatched_vehicles".
-    "INNER JOIN l_engine_types USING (engine_type_name) ".
-    "WHERE l_engine_types.engine_type_id IS NULL";
+    "LEFT JOIN l_engine_types USING (engine_type_name) ".
+    "WHERE l_engine_types.engine_type_id IS NULL ".
+    "AND engine_type_name <> '' AND engine_type_name IS NOT NULL"
+;
 $engineTypeInsert = new PreparedStatement($conn, $engineTypeInsertSQL);
 
 //--------------------------------------------//
