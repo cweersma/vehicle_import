@@ -135,7 +135,7 @@ if (isset($csvPaths['hs'])){
     oneShot(new Query($conn, "CREATE TEMPORARY TABLE t_hs (`inventory_no` VARCHAR(255) NOT NULL,`mfr_software_no` VARCHAR(255) NOT NULL)"));
 
     //INSERT IGNORE here, along with the NOT NULL constraints, sanitize the data for rows missing data; this is thrown out in the process of the INSERT
-    $hsInsert = new PreparedStatement($conn, "INSERT IGNORE INTO t_hs (inventory_no, mfr_software_no) VALUES(:0,:1)");
+    $hsInsert = new PreparedStatement($conn, "INSERT IGNORE INTO t_hs (inventory_no, mfr_software_no) VALUES(?,?)");
     for ($i = 0; $i < count($hsContents); $i++){
         if (in_array('',$hsContents[$i])) continue;     //Skip any lines that have empty strings for either value
         $hsInsert->addParameterSet($hsContents[$i]);
@@ -162,7 +162,7 @@ if (isset($csvPaths['sh'])){
     if ($verbose) echo "Creating software/Hollander temp table.\n";
     oneShot(new Query($conn, "CREATE TEMPORARY TABLE t_sh (`mfr_software_no` VARCHAR(255) NOT NULL,`hollander_no` VARCHAR(255) NOT NULL)"));
     if ($verbose) echo "Inserting CSV data into software/Hollander temp table.\n";
-    $shInsert = new PreparedStatement($conn, "INSERT IGNORE INTO t_sh (mfr_software_no, hollander_no) VALUES(:0,:1)");
+    $shInsert = new PreparedStatement($conn, "INSERT IGNORE INTO t_sh (mfr_software_no, hollander_no) VALUES(?,?)");
     for ($i = 0; $i < count($shContents); $i++){
         if (in_array('',$shContents[$i])) continue;     //Skip any lines that have empty strings for either value
         $shInsert->addParameterSet($shContents[$i]);
@@ -184,7 +184,7 @@ if (isset($csvPaths['hh'])){
     if ($verbose) echo "Creating hardware/Hollander temp table.\n";
     oneShot(new Query($conn, "CREATE TEMPORARY TABLE t_hh (`inventory_no` VARCHAR(255) NOT NULL,`hollander_no` VARCHAR(255) NOT NULL)"));
     if ($verbose) echo "Inserting CSV data into hardware/Hollander temp table.\n";
-    $hhInsert = new PreparedStatement($conn, "INSERT IGNORE INTO t_hh (inventory_no, hollander_no) VALUES(:0,:1)");
+    $hhInsert = new PreparedStatement($conn, "INSERT IGNORE INTO t_hh (inventory_no, hollander_no) VALUES(?,?)");
     for ($i = 0; $i < count($hhContents); $i++){
         if (in_array('',$hhContents[$i])) continue;     //Skip any lines that have empty strings for either value
         $hhInsert->addParameterSet($hhContents[$i]);
