@@ -130,6 +130,7 @@ if (isset($csvPaths['hs'])){
     if ($verbose) echo "Inserting hardware/software into t_hs.\n";
     //Get the CSV data
     $hsContents = parseCSV($csvPaths['hs'], 2);
+    if ($verbose) echo "Row count:" . count($hsContents)."\n";
 
     //First dump the CSV dataset into a temporary table
     oneShot(new Query($conn, "CREATE TEMPORARY TABLE t_hs (`inventory_no` VARCHAR(255) NOT NULL,`mfr_software_no` VARCHAR(255) NOT NULL)"));
@@ -159,6 +160,7 @@ if (isset($csvPaths['hs'])){
 if (isset($csvPaths['sh'])){
     if ($verbose) echo "Parsing software/Hollander CSV.\n";
     $shContents = parseCSV($csvPaths['sh'], 2);
+    if ($verbose) echo "Row count:" . count($shContents)."\n";
     if ($verbose) echo "Creating software/Hollander temp table.\n";
     oneShot(new Query($conn, "CREATE TEMPORARY TABLE t_sh (`mfr_software_no` VARCHAR(255) NOT NULL,`hollander_no` VARCHAR(255) NOT NULL)"));
     if ($verbose) echo "Inserting CSV data into software/Hollander temp table.\n";
@@ -181,6 +183,7 @@ if (isset($csvPaths['sh'])){
 if (isset($csvPaths['hh'])){
     if ($verbose) echo "Parsing hardware/Hollander CSV.\n";
     $hhContents = parseCSV($csvPaths['hh'], 2);
+    if ($verbose) echo "Row count:" . count($hhContents)."\n";
     if ($verbose) echo "Creating hardware/Hollander temp table.\n";
     oneShot(new Query($conn, "CREATE TEMPORARY TABLE t_hh (`inventory_no` VARCHAR(255) NOT NULL,`hollander_no` VARCHAR(255) NOT NULL)"));
     if ($verbose) echo "Inserting CSV data into hardware/Hollander temp table.\n";
@@ -210,6 +213,7 @@ $colCount = match ($info_type){
     '--use-spec' => 8
 };
 $svContents = parseCSV($csvPaths['sv'],$colCount);
+if ($verbose) echo "Row count: ".count($svContents)."\n";
 
 $svTableSQL = "CREATE TEMPORARY TABLE IF NOT EXISTS t_sv (`mfr_software_no` VARCHAR(255) NOT NULL, ";
 $svInsertSQL = "INSERT IGNORE INTO t_sv (mfr_software_no, ";
