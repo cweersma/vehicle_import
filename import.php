@@ -292,14 +292,7 @@ switch ($info_type){
     case "--use-spec":
         if ($verbose) echo "Updating software/vehicle temp table with vehicle spec matches from existing data.\n";
 
-        $specSQL = "WITH vehicles AS (".
-                        "SELECT make_name, model_name, IF(model_year IS NOT NULL, model_year, sequence + year_increment) AS model_year, ".
-                        "engine_displacement, trim, series FROM vehicle_identities ".
-                        "LEFT JOIN l_VDS USING (vds_id) ".
-                        "LEFT JOIN l_yearDigits ON vehicle_identities.year_digit = l_yearDigits.digit ".
-                        "INNER JOIN l_models ON vehicle_identities.model_id = l_models.model_id ".
-                        "INNER JOIN l_makes ON l_models.make_id = l_makes.make_id) ".
-                    "UPDATE t_sv ".
+        $specSQL = "UPDATE t_sv ".
                     "INNER JOIN vehicles ON ".
                         "t_sv.make_name = vehicles.make_name ".
                         "AND t_sv.model_name = vehicles.model_name ".
