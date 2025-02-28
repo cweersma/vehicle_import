@@ -240,7 +240,7 @@ $svTableSQL .= "`vehicle_id` INT(11) UNSIGNED)";
 //Creates an "?,?,?" string of the appropriate length
 $placeholderArray = [];
 for ($i=0; $i<$colCount; $i++){
-    $placeholderArray[$i] = ":".$i;
+    $placeholderArray[$i] = "?";
 }
 $placeholders = implode(',',$placeholderArray);
 $svInsertSQL .= "VALUES ($placeholders)";
