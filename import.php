@@ -213,7 +213,8 @@ $colCount = match ($info_type){
     '--use-spec' => 8
 };
 $svContents = parseCSV($csvPaths['sv'],$colCount);
-if ($verbose) echo "Row count: ".count($svContents)."\n";
+$svRowCount = count($svContents);
+if ($verbose) echo "Row count: $svRowCount\n";
 
 $svTableSQL = "CREATE TEMPORARY TABLE IF NOT EXISTS t_sv (`mfr_software_no` VARCHAR(255) NOT NULL, ";
 $svInsertSQL = "INSERT IGNORE INTO t_sv (mfr_software_no, ";
@@ -254,24 +255,21 @@ oneShot(new Query($conn, $svTableSQL));
 
 if ($verbose) echo "Inserting CSV data into software/vehicle temp table.\n";
 $svInsert = new PreparedStatement($conn,$svInsertSQL);
-for ($i = 0; $i < count($svContents); $i++){
-    for ($i = 0; $i < count($svContents); $i++){
-        $rowHasData = false;
-        for ($j = 0; $j < count($svContents[$i]); $j++){
-            if ($svContents[$i][$j] == '') {
-                $rowHasEmptyString = true;
-                $svContents[$i][$j] = null;
-            }
-            else {
-                $rowHasData = true;
-            }
+for ($i = 0; $i < $svRowCount; $i++){
+    $rowHasData = false;
+    for ($j = 0; $j < count($svContents[$i]); $j++){
+        if (!isset($svContents[$i][$j]) || $svContents[$i][$j] == '') {
+            $svContents[$i][$j] = null;
         }
-        if ($info_type == '--use-vin'){
-            //Skip any invalid VINs
-            if (!$svContents[$i][1] ||(preg_match("/^[A-HJ-NPR-Z\d]{8}[\dX][A-HJ-NPR-Z\d]{2}\d{6}$/i",$svContents[$i][1])) != 1) continue;
+        else {
+            $rowHasData = true;
         }
-        if ($rowHasData) $svInsert->addParameterSet($svContents[$i]);
     }
+    if ($info_type == '--use-vin'){
+        //Skip any invalid VINs
+        if (!$svContents[$i][1] ||(preg_match("/^[A-HJ-NPR-Z\d]{8}[\dX][A-HJ-NPR-Z\d]{2}\d{6}$/i",$svContents[$i][1])) != 1) continue;
+    }
+    if ($rowHasData) $svInsert->addParameterSet($svContents[$i]);
 }
 
 $svInsert();
