@@ -298,8 +298,8 @@ switch ($info_type){
                         "AND t_sv.model_name = vehicles.model_name ".
                         "AND t_sv.model_year = vehicles.model_year ".
                         "AND t_sv.engine_displacement = vehicles.engine_displacement ".
-                        "AND (t_sv.series = vehicles.series OR (t_sv.series IS NULL AND vehicles.series IS NULL)) ".
-                        "AND (t_sv.trim = vehicles.trim OR (t_sv.trim IS NULL AND vehicles.trim IS NULL)) ".
+                        "AND (t_sv.vehicle_series = vehicles.vehicle_series OR (t_sv.vehicle_series IS NULL AND vehicles.vehicle_series IS NULL)) ".
+                        "AND (t_sv.vehicle_trim = vehicles.vehicle_trim OR (t_sv.vehicle_trim IS NULL AND vehicles.vehicle_trim IS NULL)) ".
                     "SET t_sv.vehicle_id = vehicles.vehicle_id";
         oneShot(new PreparedStatement($conn,$specSQL));
         break;
