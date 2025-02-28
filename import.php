@@ -211,7 +211,7 @@ $colCount = match ($info_type){
 };
 $svContents = parseCSV($csvPaths['sv'],$colCount);
 
-$svTableSQL = "CREATE TABLE IF NOT EXISTS t_sv (`mfr_software_no` VARCHAR(255) NOT NULL, ";
+$svTableSQL = "CREATE TEMPORARY TABLE IF NOT EXISTS t_sv (`mfr_software_no` VARCHAR(255) NOT NULL, ";
 $svInsertSQL = "INSERT IGNORE INTO t_sv (mfr_software_no, ";
 switch ($info_type) {
     case '--use-vin':
