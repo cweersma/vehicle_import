@@ -267,7 +267,7 @@ for ($i = 0; $i < $svRowCount; $i++){
     }
     if ($info_type == '--use-vin'){
         //Skip any invalid VINs
-        if (!$svContents[$i][1] ||(preg_match("/^[A-HJ-NPR-Z\d]{8}[\dX][A-HJ-NPR-Z\d]{2}\d{6}$/i",$svContents[$i][1])) != 1) continue;
+        if (!$svContents[$i][1] ||(preg_match("/^[A-HJ-NPR-Z\d]{8}[\dX\_][A-HJ-NPR-Z\d]{1}/i",$svContents[$i][1])) != 1) continue;
     }
     if ($rowHasData) $svInsert->addParameterSet($svContents[$i]);
 }
