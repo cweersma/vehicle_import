@@ -320,6 +320,9 @@ $insertVSM = new Query($conn, $insertVSM_SQL);
 
 $insertVSM();
 
+if ($info_type == '--use-spec'){
+    die("Complete. \n");
+}
 
 if ($verbose) echo "All possible matching done from existing data in NIS. Preparing for vPIC API calls for unmatched VINs...\n";
 
