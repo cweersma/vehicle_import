@@ -308,8 +308,8 @@ switch ($info_type){
         $inserts[] = "INSERT IGNORE INTO l_makes (make_name) SELECT DISTINCT make_name FROM t_sv LEFT JOIN l_makes using (make_name) WHERE make_id is null";
         $inserts[] = "INSERT IGNORE INTO l_models (make_id, model_name) SELECT DISTINCT l_makes.make_id, t_sv.model_name FROM t_sv INNER JOIN l_makes using (make_name) LEFT JOIN l_models ON l_makes.make_id = l_models.make_id AND t_sv.model_name = l_models.model_name WHERE model_id IS NULL";
         $inserts[] = "INSERT IGNORE INTO l_engine_types (engine_type_name) SELECT DISTINCT engine_type FROM t_sv LEFT JOIN l_engine_types ON t_sv.engine_type = l_engine_types.engine_type_name WHERE engine_type_id IS NULL";
-        $inserts[] = "INSERT INTO vehicle_identities (make_id, model_year, engine_displacement, engine_type_id, vehicle_series, vehicle_trim) ".
-            "SELECT make_id, model_year, engine_displacement, engine_type_id, vehicle_series, vehicle_trim ".
+        $inserts[] = "INSERT INTO vehicle_identities (model_id, model_year, engine_displacement, engine_type_id, vehicle_series, vehicle_trim) ".
+            "SELECT model_id, model_year, engine_displacement, engine_type_id, vehicle_series, vehicle_trim ".
             "FROM t_sv ".
             "INNER JOIN l_makes USING (make_name) ".
             "INNER JOIN l_models ON l_makes.make_id = l_models.make_id AND t_sv.model_name = l_models.model_name ".
