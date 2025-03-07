@@ -313,7 +313,7 @@ switch ($info_type){
             "FROM t_sv ".
             "INNER JOIN l_makes USING (make_name) ".
             "INNER JOIN l_models ON l_makes.make_id = l_models.make_id AND t_sv.model_name = l_models.model_name ".
-            "INNER JOIN l_engine_types ON t_sv.engine_type = l_engine_types.engine_type_name".
+            "INNER JOIN l_engine_types ON t_sv.engine_type = l_engine_types.engine_type_name ".
             "WHERE t_sv.vehicle_id IS NULL";
         for($i=0; $i<count($inserts); $i++){
             oneShot(new Query($conn,$inserts[$i]));;
