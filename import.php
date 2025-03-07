@@ -306,7 +306,7 @@ switch ($info_type){
         oneShot(new PreparedStatement($conn,$specSQL));
         $inserts = [];
         $inserts[] = "INSERT INTO l_makes (make_name) SELECT make_name FROM t_sv LEFT JOIN l_makes using (make_name) WHERE make_id is null";
-        $inserts[] = "INSERT INTO l_models (make_id, model_name) SELECT make_id, model_name FROM t_sv INNER JOIN l_makes using (make_name) LEFT JOIN l_models ON l_makes.make_id = l_models_make_id AND t_sv.model_name = l_models.model_name WHERE model_id IS NULL";
+        $inserts[] = "INSERT INTO l_models (make_id, model_name) SELECT l_makes.make_id, model_name FROM t_sv INNER JOIN l_makes using (make_name) LEFT JOIN l_models ON l_makes.make_id = l_models_make_id AND t_sv.model_name = l_models.model_name WHERE model_id IS NULL";
         $inserts[] = "INSERT INTO l_engineTypes (engine_type_name) SELECT engine_type FROM t_sv LEFT JOIN l_engineTypes ON t_sv.engine_type = l_engine_types.engine_type_name WHERE engine_type_id IS NULL";
         $inserts[] = "INSERT INTO vehicle_identities (make_id, model_year, engine_displacement, engine_type_id, vehicle_series, vehicle_trim) ".
             "SELECT make_id, model_year, engine_displacement, engine_type_id, vehicle_series, vehicle_trim ".
