@@ -302,7 +302,7 @@ switch ($info_type){
                         "AND t_sv.engine_displacement = vehicles.engine_displacement ".
                         "AND (t_sv.vehicle_series = vehicles.vehicle_series OR (t_sv.vehicle_series IS NULL AND vehicles.vehicle_series IS NULL)) ".
                         "AND (t_sv.vehicle_trim = vehicles.vehicle_trim OR (t_sv.vehicle_trim IS NULL AND vehicles.vehicle_trim IS NULL)) ".
-                    "SET t_sv.vehicle_id = vehicles.vehicle_id";
+                    "SET t_sv.vehicle_id = vehicles.vehicle_id WHERE t_sv.vehicle_id IS NULL";
         oneShot(new PreparedStatement($conn,$specSQL));
         $inserts = [];
         $inserts[] = "INSERT INTO l_makes (make_name) SELECT make_name FROM t_sv LEFT JOIN l_makes using (make_name) WHERE make_id is null";
@@ -313,11 +313,12 @@ switch ($info_type){
             "FROM t_sv ".
             "INNER JOIN l_makes USING (make_name) ".
             "INNER JOIN l_models ON l_makes.make_id = l_models.make_id AND t_sv.model_name = l_models.model_name ".
-            "INNER JOIN l_engine_types ON t_sv.engine_type = l_engine_types.engine_type_name";
+            "INNER JOIN l_engine_types ON t_sv.engine_type = l_engine_types.engine_type_name".
+            "WHERE t_sv.vehicle_id IS NULL";
         for($i=0; $i<count($inserts); $i++){
-            $query = new Query($conn,$inserts[$i]);
-            oneShot($query);
+            oneShot(new Query($conn,$inserts[$i]));;
         }
+        oneShot(new PreparedStatement($conn,$specSQL));
         break;
 }
 
